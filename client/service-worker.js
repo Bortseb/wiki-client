@@ -18,6 +18,7 @@ const SHELL = [
   '/client.js',
   '/favicon.png',
   '/system/sitemap.json',
+  '/system/site-index.json',
   '/welcome-visitors.json',
   '/images/noise.png',
   '/images/crosses.png',
@@ -131,11 +132,62 @@ function offlineHtml(reason) {
   )
 }
 
+const ICON_REV_PATH = '/pwa-icon.rev'
+
+function revFromHeaders(res) {
+  const etag = res.headers.get('etag')
+  if (etag) return etag.replace(/^W\//i, '').replace(/"/g, '')
+  const lm = res.headers.get('last-modified')
+  if (lm) return String(Date.parse(lm) || lm)
+  return ''
+}
+
+function revFromBuffer(buf) {
+  const u8 = new Uint8Array(buf)
+  let h = u8.length
+  const step = Math.max(1, Math.floor(u8.length / 64))
+  for (let i = 0; i < u8.length; i += step) h = (Math.imul(31, h) + u8[i]) | 0
+  return `b${u8.length.toString(36)}_${(h >>> 0).toString(36)}`
+}
+
+function revFromManifestIcons(manifest) {
+  const src = manifest?.icons?.find(i => /pwa-icon-/i.test(i?.src || ''))?.src || manifest?.icons?.[0]?.src || ''
+  try {
+    return new URL(src, self.registration.scope).searchParams.get('v') || ''
+  } catch {
+    return ''
+  }
+}
+
+async function readStoredIconRev(cache) {
+  try {
+    const hit = await cache.match(ICON_REV_PATH)
+    return hit ? String(await hit.text() || '').trim() : ''
+  } catch {
+    return ''
+  }
+}
+
+async function writeStoredIconRev(cache, rev) {
+  if (!rev) return
+  await cache.put(
+    ICON_REV_PATH,
+    new Response(String(rev), {
+      headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' },
+    }),
+  )
+}
+
+async function hasBuiltPwaIcons(cache) {
+  return !!(await matchPath(cache, '/pwa-icon-192.png')) && !!(await matchPath(cache, '/pwa-icon-512.png'))
+}
+
 async function persistManifest(manifest, icons) {
   manifestData = manifest || null
   const cache = await caches.open(CACHE)
   if (!manifestData) {
     await cache.delete('/manifest.overlay.json')
+    await cache.delete(ICON_REV_PATH)
     return
   }
   await cache.put('/manifest.overlay.json', manifestResponse(manifestData))
@@ -148,6 +200,8 @@ async function persistManifest(manifest, icons) {
     await cache.put(`/pwa-icon-${size}.png`, body.clone())
     await cache.put(`${base}/pwa-icon-${size}.png`, body.clone())
   }
+  const rev = revFromManifestIcons(manifestData)
+  if (rev) await writeStoredIconRev(cache, rev)
 }
 
 async function loadPersistedManifest() {
@@ -160,6 +214,95 @@ async function loadPersistedManifest() {
   } catch {
     return null
   }
+}
+
+let iconRefreshPromise = null
+let lastCheckedIconRev = ''
+
+async function askClientsToRevalidateFavicon() {
+  try {
+    const clients = await self.clients.matchAll({ type: 'window' })
+    for (const client of clients) client.postMessage({ type: 'REVALIDATE_FAVICON' })
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Cheap live favicon identity (etag / last-modified / body sample) — same scheme as pwa.js. */
+async function liveFaviconIdentity() {
+  const url = new URL('/favicon.png', self.registration.scope).href
+  try {
+    const head = await fetch(url, { method: 'HEAD', cache: 'no-cache', redirect: 'follow' })
+    if (head.ok) {
+      const rev = revFromHeaders(head)
+      if (rev) return { rev, buf: null }
+    }
+  } catch {
+    /* fall through to GET */
+  }
+  const res = await fetch(url, { cache: 'no-cache', redirect: 'follow' })
+  if (!res.ok) return null
+  const buf = await res.arrayBuffer()
+  return { rev: revFromHeaders(res) || revFromBuffer(buf), buf }
+}
+
+/** Rebuild /pwa-icon-*.png from live /favicon.png only when the favicon rev changed. */
+async function refreshPwaIconsFromFavicon() {
+  if (iconRefreshPromise) return iconRefreshPromise
+  iconRefreshPromise = (async () => {
+    const cache = await caches.open(CACHE)
+    const stored = lastCheckedIconRev || (await readStoredIconRev(cache)) || revFromManifestIcons(await loadPersistedManifest())
+    const live = await liveFaviconIdentity()
+    if (!live?.rev) return
+    lastCheckedIconRev = live.rev
+    if (live.rev === stored && (await hasBuiltPwaIcons(cache))) {
+      if (live.rev !== (await readStoredIconRev(cache))) await writeStoredIconRev(cache, live.rev)
+      return
+    }
+
+    if (typeof OffscreenCanvas === 'undefined' || typeof createImageBitmap === 'undefined') {
+      await askClientsToRevalidateFavicon()
+      return
+    }
+
+    let buf = live.buf
+    if (!buf) {
+      const res = await fetch(new URL('/favicon.png', self.registration.scope).href, {
+        cache: 'no-cache',
+        redirect: 'follow',
+      })
+      if (!res.ok) return
+      buf = await res.arrayBuffer()
+    }
+    const bitmap = await createImageBitmap(new Blob([buf], { type: 'image/png' }))
+    try {
+      const base = self.registration.scope.replace(/\/$/, '')
+      for (const size of [192, 512]) {
+        const canvas = new OffscreenCanvas(size, size)
+        const ctx = canvas.getContext('2d')
+        ctx.fillStyle = '#eeeeee'
+        ctx.fillRect(0, 0, size, size)
+        const scale = Math.min(size / bitmap.width, size / bitmap.height)
+        const w = bitmap.width * scale
+        const h = bitmap.height * scale
+        ctx.drawImage(bitmap, (size - w) / 2, (size - h) / 2, w, h)
+        const blob = await canvas.convertToBlob({ type: 'image/png' })
+        const body = new Response(blob, {
+          headers: { 'Content-Type': 'image/png', 'Cache-Control': 'no-cache' },
+        })
+        await cache.put(`/pwa-icon-${size}.png`, body.clone())
+        await cache.put(`${base}/pwa-icon-${size}.png`, body.clone())
+      }
+      await writeStoredIconRev(cache, live.rev)
+    } finally {
+      bitmap.close()
+    }
+  })()
+    .catch(err => console.warn('[PWA SW] icon refresh failed', err))
+    .finally(() => {
+      iconRefreshPromise = null
+    })
+  return iconRefreshPromise
 }
 
 async function navigationOfflineResponse() {
@@ -378,13 +521,23 @@ self.addEventListener('fetch', event => {
     safeRespond(
       event,
       (async () => {
-        const hit = await matchPath(await caches.open(CACHE), url.pathname, {
+        const matchOpts = {
           request,
           ignoreSearch: true,
           ignoreMethod: true,
           ignoreVary: true,
-        })
-        return hit || new Response('', { status: 404 })
+        }
+        const hit = await matchPath(await caches.open(CACHE), url.pathname, matchOpts)
+        if (!navigator.onLine) return hit || new Response('', { status: 404 })
+
+        const refresh = refreshPwaIconsFromFavicon()
+        event.waitUntil(refresh)
+        if (hit) return hit
+        await refresh
+        return (
+          (await matchPath(await caches.open(CACHE), url.pathname, matchOpts)) ||
+          new Response('', { status: 404 })
+        )
       })(),
     )
     return
