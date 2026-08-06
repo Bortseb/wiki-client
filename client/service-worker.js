@@ -1,4 +1,4 @@
-const CACHE = 'fedwiki-pwa-1'
+const CACHE = 'fedwiki-pwa-2'
 const SHELL_HTML = '/__wiki_shell__'
 let manifestData = null
 let standaloneActive = false
@@ -366,6 +366,21 @@ function offlineMissResponse(request) {
   return new Response('', { status: 404, statusText: 'Not Found' })
 }
 
+/** Paths the wiki shell SW must not own as document navigations. */
+function isPassthroughNavigate(pathname) {
+  return (
+    pathname.startsWith('/assets/') ||
+    pathname.startsWith('/plugins/') ||
+    pathname.startsWith('/plugin/')
+  )
+}
+
+/**
+ * Online navigate: network first.
+ * Use redirect:'manual' so a 302 (e.g. / → /assets/home/index.html) is returned to the
+ * browser instead of being followed inside the SW. Following redirects through respondWith
+ * has hung Chrome tabs for custom home pages while incognito (no SW) worked fine.
+ */
 async function networkFirst(request, { navigate = false } = {}) {
   const cache = await caches.open(CACHE)
   const pathname = new URL(request.url).pathname
@@ -391,9 +406,17 @@ async function networkFirst(request, { navigate = false } = {}) {
     const isHeavyAsset = pathname.startsWith('/assets/') || /^\/proxy\/[^/]+\/assets\//i.test(pathname)
     const signal =
       !isHeavyAsset && typeof AbortSignal !== 'undefined' && AbortSignal.timeout
-        ? AbortSignal.timeout(10000)
+        ? AbortSignal.timeout(navigate ? 15000 : 10000)
         : undefined
-    const res = await fetch(request, signal ? { signal } : undefined)
+    const fetchOpts = {}
+    if (signal) fetchOpts.signal = signal
+    // Never follow redirects inside respondWith for document navigations.
+    if (navigate) fetchOpts.redirect = 'manual'
+    const res = await fetch(request, fetchOpts)
+    // Let the browser handle redirects (e.g. / → /assets/home).
+    if (res.type === 'opaqueredirect' || (res.status >= 300 && res.status < 400)) {
+      return res
+    }
     if (res.ok) {
       cachePut(cache, request, res.clone()).catch(() => {})
       return res
@@ -545,8 +568,11 @@ self.addEventListener('fetch', event => {
 
   if (!standaloneActive) return
 
+  // Custom asset pages (/assets/home, uploads, etc.) and plugin UIs must bypass
+  // respondWith — owning those navigations hung browsers (worked in incognito).
   if (sameOrigin && request.mode === 'navigate') {
-    safeRespond(event, networkFirst(request, { navigate: !url.pathname.startsWith('/plugins/') }))
+    if (isPassthroughNavigate(url.pathname)) return
+    safeRespond(event, networkFirst(request, { navigate: true }))
     return
   }
 
