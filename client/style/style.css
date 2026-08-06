@@ -516,6 +516,16 @@ textarea {
   min-height: 150px;
 }
 
+.item.textEditing:not(.code) > textarea {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  font: inherit;
+  box-sizing: border-box;
+  overflow: hidden;
+  resize: none;
+}
+
 .clickable:hover {
   cursor: pointer;
 }
