@@ -494,6 +494,11 @@ textarea {
   .page {
     flex: 0 0 100vw;
     font-size: 0.875rem;
+    scroll-snap-align: center;
+  }
+
+  .main {
+    scroll-snap-type: x mandatory;
   }
 }
 
