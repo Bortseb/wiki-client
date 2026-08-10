@@ -52,7 +52,7 @@ body {
   /*  width: 10000%; */
   display: flex;
   overflow-x: auto;
-  height: calc(100vh - 40px);
+  height: calc(100vh - var(--footer-height, 40px));
 }
 
 footer {
@@ -62,11 +62,17 @@ footer {
   position: fixed;
   left: 0;
   right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
   height: 20px;
   padding: 10px;
   font-size: 80%;
   z-index: 1000;
   color: #ccdcd2;
+  box-sizing: content-box;
 }
 
 footer form,
@@ -108,14 +114,165 @@ footer form,
   overflow-x: hidden;
 }
 
+@media (max-width: 490px) {
+  .incremental-search {
+    display: block;
+    max-width: none;
+    width: 100%;
+    left: 0;
+    right: 0;
+    box-sizing: border-box;
+    z-index: 1000;
+  }
+}
+
 .search-term {
   background-color: yellow;
 }
 
 .neighbor {
-  float: right;
+  float: none;
+  flex: 0 0 auto;
   padding-left: 8px;
   width: 16px;
+}
+
+footer input.search {
+  width: 10em;
+  flex: 0 0 10em;
+  min-width: 10em;
+  max-width: 10em;
+  box-sizing: border-box;
+  /* Match classic desktop search field against the dark footer texture. */
+  background: #ffffff;
+  color: #222222;
+  border: 1px solid #7a7a7a;
+}
+
+/* Desktop default: original "wiki ✔︎" control. Mobile swaps to pill+edit via media query. */
+footer .editEnableSlot {
+  display: inline-block;
+  width: 1.25em;
+  text-align: center;
+  vertical-align: baseline;
+}
+
+footer .wiki-edit-toggle {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+footer .wiki-edit-mobile {
+  display: none;
+}
+
+footer .edit-toggle-track {
+  position: relative;
+  width: 34px;
+  height: 18px;
+  border-radius: 999px;
+  background: #c5c5c5;
+  border: 1px solid #9a9a9a;
+  box-sizing: border-box;
+}
+
+footer .edit-toggle-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease;
+}
+
+footer .wiki-edit-toggle.is-on .edit-toggle-track {
+  background: #30d158;
+  border-color: #1faa44;
+}
+
+footer .wiki-edit-toggle.is-on .edit-toggle-knob {
+  transform: translateX(16px);
+}
+
+footer .edit-toggle-label {
+  font-size: 0.65rem;
+  color: #3d3c43;
+  text-transform: lowercase;
+}
+
+/* Search/menu/wiki share one flex item; owner + security stay direct footer children
+   so security plugins can use footer > #security. Do not grow — keeps ☰ with pages/wiki. */
+.footer-controls {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.footer-controls .searchbox {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  min-width: 0;
+  /* Classic markup used &nbsp; before/after the input. */
+  gap: 0.55em;
+}
+
+.footer-controls .searchbox .pages {
+  margin-left: 0;
+}
+
+.footer-controls .footer-menu {
+  flex: 0 0 auto;
+  /* Classic markup was "&nbsp; ☰ " — keep a clear gutter after "N pages". */
+  margin-left: 1.1em;
+  margin-right: 0.5em;
+  /* ☰ strokes thicken badly under bold; keep regular weight like classic. */
+  font-weight: 400;
+}
+
+.footer-controls .wiki-edit-toggle {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  margin-left: 0.15em;
+}
+
+footer > #site-owner,
+footer > #security {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.neighborhood {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  flex: 0 0 auto;
+  /* Keep a classic gutter between controls and the flag strip; auto still packs right. */
+  margin-left: auto;
+  padding-left: 4px;
+  overflow: visible; /* spinning flags; clip only while .overflowing / .scrollable */
+}
+
+footer .neighbor[draggable='true'] {
+  touch-action: none;
+  user-select: none;
+}
+
+footer .neighbor.lifting {
+  position: relative;
+  z-index: 5;
+  opacity: 0.75;
 }
 
 img.remote,
@@ -521,13 +678,197 @@ textarea {
 }
 
 @media all and (max-width: 490px) {
+  /* Readable mobile floor — footer text ≥16px. */
+  body,
+  footer,
+  .page {
+    font-size: 16px;
+  }
+
   .page {
     width: 1%;
     margin: 8px;
     padding: 0;
     flex: 0 0 100vw;
-    font-size: 0.87rem;
     overflow-x: unset;
+  }
+
+
+  footer .neighborhood {
+    flex: 0 0 auto;
+    margin-left: 0;
+    min-width: 0;
+    background: transparent;
+    background-image: none;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    margin-top: -6px;
+    margin-bottom: -6px;
+  }
+
+  footer .footer-menu {
+    flex: 0 0 auto;
+    align-self: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    margin: 0;
+    padding: 0;
+    font-size: 22px;
+    line-height: 1;
+    /* ☰ sits high in most fonts — nudge for optical vertical center vs Wiki-by. */
+    transform: translateY(1px);
+  }
+
+  footer #site-owner {
+    flex: 0 1 auto;
+    align-self: center;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    width: max-content;
+    max-width: 7.5rem;
+    margin: 0;
+    line-height: 1.15;
+    font-size: 14px;
+    font-weight: 400;
+    color: #c8c8c8;
+    white-space: nowrap;
+  }
+
+  footer #site-owner > span,
+  footer #site-owner > #site-owner {
+    display: block;
+    width: max-content;
+    max-width: 7.5rem;
+    font-size: 16px;
+    font-weight: 700;
+    color: #ffffff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  footer #security {
+    flex: 0 0 auto;
+    margin-left: 0;
+  }
+
+  footer #site-owner.footer-item,
+  footer #security.footer-item {
+    margin-left: 0;
+  }
+
+  footer .wiki-edit-toggle {
+    order: 1;
+    flex: 0 0 auto;
+    flex-direction: column;
+    min-width: 40px;
+    min-height: 40px;
+    padding: 0 4px;
+    gap: 2px;
+    background: transparent;
+  }
+
+  footer .wiki-edit-desktop-label {
+    display: none;
+  }
+
+  /* Keep .editEnable mounted for :visible checks; hide the ✔︎ glyph on mobile. */
+  footer .editEnableSlot {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+  }
+
+  footer .wiki-edit-mobile {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  footer .wiki-edit-toggle.is-on .edit-toggle-track {
+    background: #30d158;
+    border-color: #12a836;
+  }
+
+  /* High contrast on the footer (footer text color is light). */
+  footer .edit-toggle-label {
+    font-size: 14px;
+    color: #f2f2f2;
+    text-shadow: 0 0 1px rgba(0, 0, 0, 0.55);
+  }
+
+  footer .searchbox {
+    order: 2;
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    width: 100%;
+  }
+
+  footer .searchbox .pages {
+    margin-left: auto;
+    flex: 0 0 auto;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0;
+    white-space: normal;
+    font-size: 14px;
+    line-height: 1.1;
+    text-align: right;
+  }
+
+  footer .neighbor {
+    width: 28px;
+    padding-left: 8px;
+  }
+
+  footer .neighbor img {
+    width: 28px;
+    height: 28px;
+  }
+
+  footer #security a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    min-height: 40px;
+    box-sizing: border-box;
+    /* Pull the glyph toward Wiki-by; keep a usable tap target. */
+    padding: 0 4px 0 2px;
+    background: transparent;
+  }
+
+  footer #security img {
+    width: 22px;
+    height: 22px;
+  }
+
+  footer input.search {
+    flex: 1 1 auto;
+    width: auto;
+    max-width: none;
+    min-width: 2.25em;
+    min-height: 32px;
+    height: 32px;
+    font-size: 16px;
+    padding: 0 8px;
   }
 }
 
