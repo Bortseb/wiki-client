@@ -291,7 +291,7 @@ footer.neighborhood-above .neighborhood {
   min-width: 0;
 }
 
-footer.neighborhood-above > .footer-chrome {
+footer.neighborhood-above > .footer-content-row {
   display: flex;
   flex: 1 0 100%;
   flex-wrap: nowrap;
@@ -826,7 +826,7 @@ textarea {
     order: -1;
   }
 
-  footer.neighborhood-above > .footer-chrome {
+  footer.neighborhood-above > .footer-content-row {
     column-gap: 2px;
   }
 
