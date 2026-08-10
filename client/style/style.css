@@ -86,7 +86,7 @@ footer form,
 }
 
 .footer-item {
-  margin-left: 6px;
+  margin-left: 8px;
 }
 
 .no-results {
@@ -133,16 +133,20 @@ footer form,
 .neighbor {
   float: none;
   flex: 0 0 auto;
-  padding-left: 6px;
+  padding-left: 8px;
   width: 16px;
 }
 
 footer input.search {
   width: 10em;
-  flex: 0 1 10em;
-  min-width: 3em;
+  flex: 0 0 10em;
+  min-width: 10em;
   max-width: 10em;
   box-sizing: border-box;
+  /* Match classic desktop search field against the dark footer texture. */
+  background: #ffffff;
+  color: #222222;
+  border: 1px solid #7a7a7a;
 }
 
 /* Desktop default: original "wiki ✔︎" control. Mobile swaps to pill+edit via media query. */
@@ -220,8 +224,8 @@ footer .edit-toggle-label {
   flex-wrap: nowrap;
   align-items: center;
   min-width: 0;
-  /* Classic markup used &nbsp; before/after the input — keep a modest gap. */
-  gap: 0.3em;
+  /* Classic markup used &nbsp; before/after the input. */
+  gap: 0.55em;
 }
 
 .footer-controls .searchbox .pages {
@@ -230,14 +234,17 @@ footer .edit-toggle-label {
 
 .footer-controls .footer-menu {
   flex: 0 0 auto;
-  /* Classic markup used "&nbsp; ☰ " — keep that breathing room via margin. */
-  margin-left: 0.4em;
-  margin-right: 0.25em;
+  /* Classic markup was "&nbsp; ☰ " — keep a clear gutter after "N pages". */
+  margin-left: 1.1em;
+  margin-right: 0.5em;
+  /* ☰ strokes thicken badly under bold; keep regular weight like classic. */
+  font-weight: 400;
 }
 
 .footer-controls .wiki-edit-toggle {
   flex: 0 0 auto;
   white-space: nowrap;
+  margin-left: 0.15em;
 }
 
 footer > #site-owner,
@@ -251,7 +258,9 @@ footer > #security {
   flex-wrap: nowrap;
   align-items: center;
   flex: 0 0 auto;
+  /* Keep a classic gutter between controls and the flag strip; auto still packs right. */
   margin-left: auto;
+  padding-left: 4px;
   overflow: visible; /* spinning flags; clip only while .overflowing / .scrollable */
 }
 
@@ -347,7 +356,8 @@ footer.neighborhood-above input.search {
   footer.neighborhood-above .neighborhood-chevron:not([hidden]) {
     display: grid;
     place-items: center;
-    padding-top: 1px; /* optical center for ‹ › */
+    line-height: 1;
+    padding: 0;
   }
 }
 
