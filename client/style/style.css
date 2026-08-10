@@ -788,6 +788,11 @@ textarea {
     padding: 0;
     flex: 0 0 100vw;
     overflow-x: unset;
+    scroll-snap-align: center;
+  }
+
+  .main {
+    scroll-snap-type: x mandatory;
   }
 
 
