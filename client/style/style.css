@@ -264,6 +264,103 @@ footer > #security {
   overflow: visible; /* spinning flags; clip only while .overflowing / .scrollable */
 }
 
+.neighborhood-track {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  flex: 0 0 auto;
+  margin-left: auto;
+  will-change: transform;
+}
+
+/* Stacked: flags on their own row above the footer controls. */
+footer.neighborhood-above {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  row-gap: 6px;
+  column-gap: 0;
+  height: auto;
+  box-sizing: content-box;
+}
+
+footer.neighborhood-above .neighborhood {
+  flex: 1 0 100%;
+  order: -1;
+  margin-left: 0;
+  min-width: 0;
+}
+
+footer.neighborhood-above > .footer-content-row {
+  display: flex;
+  flex: 1 0 100%;
+  flex-wrap: nowrap;
+  align-items: center;
+  min-width: 0;
+  column-gap: 0;
+}
+
+footer.neighborhood-above .footer-controls {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+footer.neighborhood-above input.search {
+  flex: 0 1 10em;
+  min-width: 3em;
+}
+
+.neighborhood.overflowing,
+.neighborhood.scrollable {
+  overflow: hidden;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  margin-top: -6px;
+  margin-bottom: -6px;
+  box-sizing: border-box;
+}
+
+.neighborhood.overflowing .neighborhood-track {
+  margin-left: 0;
+}
+
+.neighborhood-chevron {
+  display: none;
+  position: absolute;
+  z-index: 6;
+  box-sizing: border-box;
+  width: 18px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  appearance: none;
+  -webkit-appearance: none;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 0;
+  color: #2a2a2a;
+  background: linear-gradient(to right, rgba(238, 238, 238, 0.97) 40%, rgba(238, 238, 238, 0));
+  cursor: pointer;
+}
+
+.neighborhood-chevron-right {
+  background: linear-gradient(to left, rgba(238, 238, 238, 0.97) 40%, rgba(238, 238, 238, 0));
+}
+
+.neighborhood-chevron:hover {
+  color: #000;
+}
+
+@media (min-width: 491px) {
+  footer.neighborhood-above .neighborhood-chevron:not([hidden]) {
+    display: grid;
+    place-items: center;
+    line-height: 1;
+    padding: 0;
+  }
+}
+
 footer .neighbor[draggable='true'] {
   touch-action: none;
   user-select: none;
@@ -694,6 +791,24 @@ textarea {
   }
 
 
+  /* Mobile footer: one row when flags fit. */
+  footer,
+  footer.neighborhood-above {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    column-gap: 2px;
+    height: auto;
+    min-height: 0;
+    padding-left: 4px;
+    padding-right: 8px;
+  }
+
+  footer.neighborhood-above {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+
   footer .neighborhood {
     flex: 0 0 auto;
     margin-left: 0;
@@ -704,6 +819,15 @@ textarea {
     padding-bottom: 6px;
     margin-top: -6px;
     margin-bottom: -6px;
+  }
+
+  footer.neighborhood-above .neighborhood {
+    flex: 1 0 100%;
+    order: -1;
+  }
+
+  footer.neighborhood-above > .footer-content-row {
+    column-gap: 2px;
   }
 
   footer .footer-menu {
@@ -760,6 +884,16 @@ textarea {
   footer #site-owner.footer-item,
   footer #security.footer-item {
     margin-left: 0;
+  }
+
+  footer .footer-controls,
+  footer.neighborhood-above .footer-controls {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
   }
 
   footer .wiki-edit-toggle {
