@@ -3280,3 +3280,7 @@ img.favicon,
 .main > .journal.ui-draggable-dragging * {
   pointer-events: none !important;
 }
+
+.wiki-lineup-nav {
+  display: none;
+}
