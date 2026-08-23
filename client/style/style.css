@@ -41,6 +41,19 @@ body {
   margin: 0px;
 }
 
+
+/* Fallback helper: Sortable locks height from getRect / placeholder styles.
+   .image img { height:100% } then fills the box and captions get clipped.
+   Keep width from JS; let height follow content like stock jQuery UI. */
+body > .ui-sortable-helper.item {
+  overflow: visible;
+  height: auto !important;
+  max-height: none;
+}
+body > .ui-sortable-helper.item :is(img.thumbnail, img.wide) {
+  height: auto;
+}
+
 .main {
   top: 0;
   left: 0;
@@ -77,6 +90,11 @@ footer form,
 .item-placeholder {
   border: 2px dotted #bbb;
   background: #eee;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.item-placeholder > * {
+  display: none;
 }
 
 .footer-item {
@@ -166,6 +184,10 @@ header {
 
 .page-handle {
   cursor: grab;
+}
+
+.page.ui-sortable-placeholder {
+  visibility: hidden;
 }
 
 footer {
@@ -295,6 +317,25 @@ div.image {
 
 .journal.ui-draggable {
   /*width: 420px;*/
+}
+
+
+.journal.ui-draggable,
+.journal.ui-draggable * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  user-drag: none;
+  touch-action: none;
+}
+.journal.ui-state-hover {
+  /* Inset shadow avoids border layout shift on journal merge hover. */
+  background: #ededed;
+  box-shadow: inset 0 0 0 1px #ccc;
+}
+.main > .journal.ui-draggable-dragging,
+.main > .journal.ui-draggable-dragging * {
+  pointer-events: none;
 }
 
 .action.fork {
