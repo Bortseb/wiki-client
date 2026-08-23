@@ -115,18 +115,13 @@ body {
 .wiki-item-drag.sortable-fallback,
 .sortable-fallback.wiki-item-drag {
   cursor: inherit !important;
-  /* Slot lock is cloneNode'd onto the helper; unlock so captions match stock. */
+  /* Slot lock (fixed height + overflow:hidden) is cloneNode'd onto this helper,
+     then Sortable sets an explicit height. That clips code/pre padding and
+     makes .image img { height:100% } fill the box so captions vanish. */
   overflow: visible !important;
   height: auto !important;
   max-height: none !important;
 }
-
-.wiki-item-drag.sortable-fallback :is(img.thumbnail, img.wide),
-.sortable-fallback.wiki-item-drag :is(img.thumbnail, img.wide),
-.wiki-item-lineup-helper :is(img.thumbnail, img.wide) {
-  height: auto !important;
-}
-
 
 /* Mobile handle-reorder: full-size clone, faded so the grey insert slot
    (where the item will land) stays readable underneath. */
@@ -137,6 +132,11 @@ body.wiki-item-handle-drag .wiki-item-drag.sortable-fallback {
   pointer-events: none !important;
 }
 
+.wiki-item-drag.sortable-fallback :is(img.thumbnail, img.wide),
+.sortable-fallback.wiki-item-drag :is(img.thumbnail, img.wide),
+.wiki-item-lineup-helper :is(img.thumbnail, img.wide) {
+  height: auto !important;
+}
 
 .sortable-fallback.item .item-chrome,
 .sortable-fallback.item .item-drag-handle,
@@ -753,6 +753,7 @@ footer {
   font-size: 80%;
   z-index: 1000;
   color: #ccdcd2;
+  bottom: 0;
 }
 
 footer form,
@@ -1378,12 +1379,16 @@ textarea {
 }
 
 .incremental-search {
+  /* Desktop matches stock FedWiki: compact panel, soft shadow, no card chrome.
+     Mobile overrides below keep the full-bleed keyboard-friendly panel. */
   position: absolute;
   background-color: white;
   color: black;
   display: inline-block;
+  box-sizing: border-box;
   max-height: 300px;
-  max-width: 430px;
+  max-width: 450px;
+  width: 450px;
   padding-top: 5px;
   padding-bottom: 5px;
   padding-right: 10px;
@@ -1392,16 +1397,646 @@ textarea {
   outline: none;
   overflow-y: auto;
   overflow-x: hidden;
+  /* Above footer (z-index 1000); panel is position:fixed on body on desktop. */
+  z-index: 1001;
+  /* Explicit 14px — panel is on body now, so it no longer inherits footer 80%. */
+  font-size: 14px;
+  /* Footer .footer-controls sets nowrap; results must wrap like stock. */
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+.incremental-search > div,
+.incremental-search p {
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  max-width: 100%;
+}
+
+.incremental-search img.remote {
+  width: 16px;
+  height: 16px;
+}
+
+.incremental-search .no-results,
+.incremental-search .omitted-results {
+  font-style: italic;
+}
+
+@media (max-width: 490px) {
+  .incremental-search {
+    display: block;
+    position: fixed;
+    max-width: none;
+    width: 100%;
+    left: 0;
+    right: 0;
+    box-sizing: border-box;
+    z-index: 1100;
+    /* JS sets top+bottom to fill above the footer; keep a sane fallback. */
+    max-height: 70vh;
+    border-radius: 0;
+    border: none;
+    border-top: 1px solid #bbb;
+    border-bottom: 1px solid #bbb;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.22);
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #888 #e8e8e8;
+    white-space: normal;
+    font-size: 16px;
+    line-height: 1.45;
+    padding: 10px 14px;
+  }
+
+  .incremental-search::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .incremental-search::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+  }
+
+  .incremental-search::-webkit-scrollbar-track {
+    background: #e8e8e8;
+  }
+
+  /* Mobile search: don't lock overflow until the keyboard is up — applying
+     overflow:hidden on focus alone can dismiss the IME on Android/iOS. */
+  body.wiki-mobile-searching.wiki-mobile-search-keyboard {
+    overflow: hidden;
+  }
+
+  body.wiki-mobile-searching.wiki-mobile-search-keyboard .main {
+    overflow: hidden !important;
+    touch-action: none;
+  }
+
+  /* Keep neighborhood visible while the search field is focused but empty —
+     only the results overlay (z-index above footer) should cover the flags.
+     Do not display:none / visibility:hidden the hood on focus: that moves the
+     focused input and dismisses Android IME. Currently dormant keyboard rules
+     below stay off under interactive-widget=resizes-content for the same reason. */
+  body.wiki-mobile-searching.wiki-mobile-search-keyboard footer .neighborhood,
+  body.wiki-mobile-searching.wiki-mobile-search-keyboard footer .neighborhood-chevron,
+  body.wiki-mobile-searching.wiki-mobile-search-keyboard .wiki-flag-tip {
+    display: none !important;
+  }
+
+  body.wiki-mobile-searching.wiki-mobile-search-keyboard footer.neighborhood-above {
+    flex-wrap: nowrap;
+    row-gap: 0;
+  }
+
+  body.wiki-mobile-searching.wiki-mobile-search-keyboard footer.neighborhood-above .footer-controls {
+    flex: 1 1 auto;
+    width: 100%;
+  }
 }
 
 .search-term {
-  background-color: yellow;
+  background-color: #ffe566;
+  border-radius: 2px;
+  padding: 0 0.15em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 
+/* Flag slot: flex (not float) so .neighborhood-track can pan with translateX
+   while keeping a fixed 16×16 layout box for chevron alignment. */
 .neighbor {
-  float: right;
+  float: none;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
   padding-left: 8px;
   width: 16px;
+  height: 16px;
+  line-height: 0;
+  /* S Pen shows a hover cursor here the same way it does on the padlock/edit control. */
+  cursor: pointer;
+}
+
+footer input.search {
+  /* Width is owned by .search-field; flex shares space with the clear square. */
+  width: auto;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none;
+  /* ~1.5em box for 14px type — readable without dominating the stock footer. */
+  height: 1.5em;
+  box-sizing: border-box;
+  padding: 0 0.5em;
+  font-size: 14px;
+  line-height: 1.25;
+  /* Chrome lives on .search-field — painting bg+radius on the <input> leaves
+     white AA flecks at the corners on Android against the dark footer. */
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #222222;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  resize: none;
+}
+
+/* Desktop default: original "wiki ✔︎" control. Mobile swaps to pill+edit via media query. */
+footer .editEnableSlot {
+  display: inline-block;
+  width: 1.25em;
+  text-align: center;
+  vertical-align: baseline;
+  flex-shrink: 0;
+}
+
+footer .wiki-edit-toggle {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+footer .wiki-edit-mobile {
+  display: none;
+}
+
+/* Mobile replaces "wiki ✔︎" with a compact on/off pill + "edit" label (see media query).
+   Track size is a finger-friendly control that still fits the stock ~40px footer. */
+footer .edit-toggle-track {
+  position: relative;
+  width: 34px;
+  height: 18px;
+  border-radius: 999px;
+  background: #c5c5c5;
+  border: 1px solid #9a9a9a;
+  box-sizing: border-box;
+}
+
+footer .edit-toggle-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease;
+}
+
+footer .wiki-edit-toggle.is-on .edit-toggle-track {
+  background: #30d158;
+  border-color: #1faa44;
+}
+
+footer .wiki-edit-toggle.is-on .edit-toggle-knob {
+  transform: translateX(16px);
+}
+
+footer .edit-toggle-label {
+  font-size: 14px;
+  color: #3d3c43;
+  text-transform: lowercase;
+}
+
+/* Search/menu/wiki share one flex item; owner + security stay direct footer children
+   so security plugins can use footer > #security. Do not grow — keeps ☰ with pages/wiki. */
+.footer-controls {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  position: relative;
+  /* Above .neighborhood so desktop incremental-search is not covered by flags. */
+  z-index: 5;
+}
+
+.footer-controls .searchbox {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  min-width: 0;
+  /* Do not flex-grow: leftover row width belongs to the flag strip (margin-left:auto).
+     Width is fixed on .search-field (10em) or --footer-search-width when shrunk. */
+  flex: 0 0 auto;
+  /* Classic markup used &nbsp; before/after the input. */
+  gap: 0.55em;
+  position: relative;
+  z-index: 6;
+}
+
+.footer-controls .searchbox .search-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  /* One-row desktop: fixed 10em. Stacking may shrink — see neighborhood-above. */
+  flex: 0 0 10em;
+  width: 10em;
+  max-width: 10em;
+  touch-action: manipulation;
+  /* Single rounded surface: clips clear + avoids input white-corner flecks. */
+  box-sizing: border-box;
+  border: 1px solid #7a7a7a;
+  border-radius: 3px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.footer-controls .searchbox .search-field input.search {
+  flex: 1 1 auto;
+  min-width: 0;
+  touch-action: manipulation;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.footer-controls .searchbox .search-clear {
+  /* In-flow trailing square (not overlaid on the <input>) — input padding steals
+     clicks from absolute clears. Visual stays the old red circle on the glyph.
+     Sizes are px (not em): font-size:0 below would make 1.5em → 0 and crush the
+     hit target; overflow:hidden on .search-field then clips the red circle. */
+  position: relative;
+  flex: 0 0 22px;
+  align-self: stretch;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: auto;
+  min-width: 22px;
+  min-height: 0;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 0;
+  line-height: 0;
+  cursor: pointer;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
+  touch-action: manipulation;
+  overflow: visible;
+}
+
+/* Red circle + X (visual only). Mobile browsers often skip ::before/::after on <button>. */
+.footer-controls .searchbox .search-clear-glyph {
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #d32f2f;
+  pointer-events: none;
+}
+
+.footer-controls .searchbox .search-clear-glyph::before,
+.footer-controls .searchbox .search-clear-glyph::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 58%;
+  height: 1.75px;
+  background: #fff;
+  border-radius: 1px;
+}
+
+.footer-controls .searchbox .search-clear-glyph::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.footer-controls .searchbox .search-clear-glyph::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.footer-controls .searchbox .search-clear[hidden] {
+  display: none !important;
+}
+
+.footer-controls .searchbox .pages {
+  margin-left: 0;
+  flex-shrink: 0;
+}
+
+.footer-controls .footer-menu {
+  flex: 0 0 auto;
+  /* Classic markup was "&nbsp; ☰ " — keep a clear gutter after "N pages". */
+  margin-left: 1.1em;
+  margin-right: 0.5em;
+  /* ☰ strokes thicken badly under bold; keep regular weight like classic. */
+  font-weight: 400;
+}
+
+.footer-controls .wiki-edit-toggle {
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  white-space: nowrap;
+  margin-left: 0.15em;
+}
+
+footer > #site-owner,
+footer > #security {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* Desktop: security padlock is Font Awesome (1em). Keep it at stock footer chrome
+   size (~80% of root) even though footer labels are 14px. Mobile inherits 16px. */
+@media (min-width: 491px) {
+  footer #security {
+    font-size: 0.8rem;
+    line-height: 1;
+  }
+
+  footer #security img {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* One-row: never ellipsis owner — stack flags instead. Stacked rules may ellipsis. */
+  footer > #site-owner {
+    flex: 0 0 auto;
+    min-width: auto;
+    max-width: none;
+    overflow: visible;
+  }
+}
+
+.neighborhood {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  flex: 0 0 auto;
+  /* Keep a classic gutter between controls and the flag strip; auto still packs right. */
+  margin-left: auto;
+  padding-left: 4px;
+  overflow: visible; /* spinning flags; clip only while .overflowing / .scrollable */
+  position: relative;
+  z-index: 1;
+}
+
+.neighborhood-track {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  flex: 0 0 auto;
+  margin-left: auto;
+  /* Pan via transform (neighbors.js), not overflow scroll — keeps origin packing stable. */
+  will-change: transform;
+}
+
+/* Shared stacked mode: flags take a full row above chrome. Desktop/mobile media
+   queries then specialize (grid vs flex) so chrome never wraps to a 3rd row. */
+footer.neighborhood-above {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  row-gap: 6px;
+  column-gap: 0;
+  height: auto;
+  box-sizing: content-box;
+}
+
+footer.neighborhood-above .neighborhood {
+  flex: 1 0 100%;
+  order: -1;
+  margin-left: 0;
+  min-width: 0;
+}
+
+/* Legacy .footer-content-row wrappers are unwrapped in JS so #security stays
+   a direct footer child for security plugins. Keep the rule harmless if present. */
+footer.neighborhood-above > .footer-content-row {
+  display: contents;
+}
+
+footer.neighborhood-above .footer-controls {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+/* Desktop stacked: exactly two rows via grid — flags, then one chrome line.
+   Flex-wrap allowed a long display name to push search onto a 3rd row. */
+@media (min-width: 491px) {
+  footer.neighborhood-above {
+    display: grid;
+    /* Owner stays max-content until search is at the icon floor (.footer-chrome-tight).
+       Spacer 1fr keeps chrome left-packed when flags move up. */
+    grid-template-columns: max-content auto max-content 1fr;
+    grid-template-rows: auto auto;
+    align-items: center;
+    justify-content: stretch;
+    column-gap: 0;
+    --footer-flag-band: 8px;
+    padding-top: var(--footer-flag-band);
+    row-gap: var(--footer-flag-band);
+    padding-bottom: 10px;
+    min-width: 0;
+  }
+
+  footer.neighborhood-above.footer-chrome-tight {
+    grid-template-columns: minmax(0, max-content) auto max-content 1fr;
+  }
+
+  footer.neighborhood-above .neighborhood {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    order: unset;
+    flex: unset;
+    width: auto;
+    max-width: 100%;
+    margin-left: 0;
+    min-width: 0;
+    align-items: center;
+    /* Non-overflow: pack flags right. .overflowing/.scrollable override to flex-start. */
+    justify-content: flex-end;
+  }
+
+  footer.neighborhood-above .neighborhood.overflowing,
+  footer.neighborhood-above .neighborhood.scrollable {
+    justify-content: flex-start;
+  }
+
+  footer.neighborhood-above .neighborhood-track {
+    margin-left: auto;
+    margin-right: 0;
+  }
+
+  footer.neighborhood-above > #site-owner {
+    grid-column: 1;
+    grid-row: 2;
+    flex: unset;
+    min-width: auto;
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+  }
+
+  footer.neighborhood-above.footer-chrome-tight > #site-owner {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  footer.neighborhood-above > #security {
+    grid-column: 2;
+    grid-row: 2;
+    flex: 0 0 auto;
+  }
+
+  footer.neighborhood-above > .footer-controls {
+    grid-column: 3;
+    grid-row: 2;
+    flex: 0 0 auto;
+    min-width: min-content;
+    max-width: none;
+    margin-right: 0;
+    justify-self: start;
+  }
+
+  footer.neighborhood-above .footer-controls .searchbox {
+    flex: 0 0 auto;
+    min-width: 0;
+  }
+
+  /* Default: same as one-row (input stays 10em). Shrunk: JS --footer-search-width. */
+  footer.neighborhood-above.footer-search-shrunk .footer-controls .searchbox .search-field {
+    flex: 0 0 var(--footer-search-width, 2.75em);
+    width: var(--footer-search-width, 2.75em);
+    min-width: 2.75em;
+    max-width: 10em;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  footer.neighborhood-above .footer-controls .searchbox .pages,
+  footer.neighborhood-above .footer-controls .footer-menu,
+  footer.neighborhood-above .footer-controls .wiki-edit-toggle,
+  footer.neighborhood-above .footer-controls .editEnableSlot {
+    flex: 0 0 auto;
+    flex-shrink: 0;
+  }
+
+  footer.neighborhood-above .footer-controls .searchbox .pages {
+    position: relative;
+    z-index: 2;
+  }
+
+  footer.neighborhood-above.footer-search-shrunk input.search {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+}
+
+.neighborhood.overflowing,
+.neighborhood.scrollable {
+  overflow: hidden;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  margin-top: -6px;
+  margin-bottom: -6px;
+  box-sizing: border-box;
+  /* Track must start at the left so translateX(-max) can put origin flush-right.
+     flex-end + translateX(-max) double-shifts and leaves a gap that grows as
+     the window shrinks (gap ≈ maxScroll). */
+  justify-content: flex-start;
+}
+
+.neighborhood.overflowing .neighborhood-track,
+.neighborhood.scrollable .neighborhood-track {
+  margin-left: 0;
+}
+
+/* Desktop stacked overflow only — mobile pans the track with a finger instead.
+   Gradient fades over the flag edge so the affordance reads without a hard box. */
+.neighborhood-chevron {
+  display: none;
+  position: absolute;
+  z-index: 6;
+  box-sizing: border-box;
+  width: 18px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  appearance: none;
+  -webkit-appearance: none;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  color: #2a2a2a;
+  background: linear-gradient(to right, rgba(238, 238, 238, 0.97) 40%, rgba(238, 238, 238, 0));
+  cursor: pointer;
+}
+
+.neighborhood-chevron-right {
+  background: linear-gradient(to left, rgba(238, 238, 238, 0.97) 40%, rgba(238, 238, 238, 0));
+}
+
+.neighborhood-chevron:hover {
+  color: #000;
+}
+
+@media (min-width: 491px) {
+  footer.neighborhood-above .neighborhood-chevron:not([hidden]) {
+    display: grid;
+    place-items: center;
+    line-height: 1;
+    padding: 0;
+  }
+}
+
+footer .neighbor[draggable='true'] {
+  touch-action: none;
+  user-select: none;
+}
+
+footer .neighbor.lifting {
+  position: relative;
+  z-index: 5;
+  opacity: 0.75;
+}
+
+/* Mid-lift past remove threshold: free horizontal slot so footer can re-fit. */
+footer .neighbor.neighbor-slot-release {
+  width: 0 !important;
+  padding-left: 0 !important;
+  margin: 0 !important;
+  min-width: 0 !important;
+  overflow: visible;
+  pointer-events: none;
+}
+
+footer .neighbor.neighbor-slot-release::after {
+  display: none;
+}
+
+footer .neighbor.neighbor-slot-release > div {
+  position: absolute;
+  left: 0;
+  top: 0;
 }
 
 img.remote,
@@ -1454,19 +2089,1194 @@ header {
   cursor: grab;
 }
 
-
-footer {
-  bottom: 0;
-}
-
 .twins,
 .journal,
 .footer {
   min-height: 1em;
   opacity: 1;
 }
-.twins:hover,
-.journal:hover,
-.footer:hover {
+
+/* Journal / backlinks / page-footer sit below the story. Rebuild (edit toggle)
+   emits empty story stubs first, so these are on-screen; scroll anchoring would
+   then pin to them and drag the page to the bottom as plugins fill the story. */
+.backlinks,
+.journal,
+.paper > .footer {
+  overflow-anchor: none;
+}
+
+.story {
+  padding-bottom: 5px;
+}
+
+.story .item {
+  position: relative;
+  min-width: 40px;
+}
+
+.story blockquote {
+  margin-left: 0;
+  padding: 0 10px;
+  color: #777;
+  border-left: 4px solid #ddd;
+}
+
+.data,
+.chart,
+.image {
+  overflow: auto; /* clearfix hack */
+  float: right;
+  margin-left: 1.4px;
+  margin-bottom: 0.4em;
+  background: #eeeeee;
+  padding: 11.2px;
+  width: 183px;
+}
+
+.image.wide {
+  width: 100%;
+  margin-left: 0em;
+  padding: 0em;
+  padding-bottom: 0.8em;
+  float: none;
+}
+
+.image.left {
+  float: left;
+  margin-left: 0em;
+  margin-right: 2.8px;
+}
+
+.image :is(.thumbnail, .wide) {
+  width: 100%;
+  height: 100%;
+}
+
+/* image overlay */
+
+div.image {
+  position: relative;
+}
+
+.image img.overlay {
+  width: 16px;
+  height: 16px;
+  position: relative;
+  bottom: 22px;
+  right: 2px; /* or -2px without float */
+  float: right;
+  opacity: 0;
+  transition: 0.7s ease;
+}
+
+.image:hover img.overlay {
   opacity: 1;
+}
+
+/* image plugin editor */
+
+.imageEditing #image-options {
+  margin-left: 4px;
+}
+
+/* end image plugin editor */
+
+.backlinks {
+  /*width: 420px;*/
+  margin-top: 2px;
+  clear: both;
+  background-color: #eeeeee;
+  padding: 1px;
+  color: grey;
+  font-size: 80%;
+}
+
+.backlinks summary {
+  margin-top: 5px;
+  margin-left: 5px;
+  margin-bottom: 3px;
+}
+
+.backlinks div {
+  margin-left: 5px;
+  margin-right: 2px;
+}
+
+.backlinks a {
+  color: steelblue;
+}
+
+.journal {
+  /*width: 420px;*/
+  overflow-x: hidden;
+  /*  margin-top: 2px; */
+  clear: both;
+  background-color: #eeeeee;
+  padding: 1px;
+}
+
+.action.fork {
+  color: black;
+}
+
+.action {
+  font-size: 0.9em;
+  background-color: #cccccc;
+  background-size: 24px 24px;
+  color: #666666;
+  text-align: center;
+  text-decoration: none;
+  padding: 0.2em;
+  margin: 3px;
+  float: left;
+  width: 18px;
+}
+
+.action.separator {
+  background-color: #eeeeee;
+}
+
+.control-buttons {
+  float: right;
+  position: relative;
+  right: 5px;
+  overflow-x: visible;
+  white-space: nowrap;
+  z-index: 2;
+}
+
+.control-buttons .button {
+  cursor: pointer;
+  position: relative;
+  z-index: 2;
+  touch-action: manipulation;
+  pointer-events: auto;
+}
+
+.button {
+  /*from bootstrap*/
+  background-color: #f5f5f5;
+  background-image: -ms-linear-gradient(top, #ffffff, #e6e6e6);
+  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ffffff), to(#e6e6e6));
+  background-image: -webkit-linear-gradient(top, #ffffff, #e6e6e6);
+  background-image: -o-linear-gradient(top, #ffffff, #e6e6e6);
+  background-image: linear-gradient(top, #ffffff, #e6e6e6);
+  background-image: -moz-linear-gradient(top, #ffffff, #e6e6e6);
+  background-repeat: repeat-x;
+  border: 1px solid #cccccc;
+  border-color: rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.25);
+  border-color: #e6e6e6 #e6e6e6 #bfbfbf;
+  border-bottom-color: #b3b3b3;
+  -webkit-border-radius: 4px;
+  -moz-border-radius: 4px;
+  border-radius: 4px;
+  -webkit-box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 1px 2px rgba(0, 0, 0, 0.05);
+  -moz-box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 1px 2px rgba(0, 0, 0, 0.05);
+
+  /*custom*/
+  display: inline-block;
+  white-space: normal;
+  position: relative;
+  top: 2px;
+  left: 3px;
+  font-size: 0.9em;
+  text-align: center;
+  text-decoration: none;
+  padding: 0.2em;
+  margin-bottom: 2px;
+  color: #2c3f39;
+  width: 18px;
+}
+
+.button:hover {
+  color: #d9a513;
+  text-shadow: 0 0 1px #2c3f39;
+  box-shadow: 0 0 7px #3d3c43;
+}
+
+.button:active {
+  box-shadow: inset 0 0 7px #3d3c43;
+}
+
+.output-item {
+  background-color: #eee;
+  padding: 15px;
+  margin-block-start: 1em;
+  margin-block-end: 1em;
+}
+
+.target {
+  background-color: #ffffcc !important;
+}
+
+.consumed {
+  outline: solid 2px orange !important;
+}
+
+.highlight {
+  outline: solid 2px red;
+}
+
+.report p,
+.data p,
+.chart p,
+.image p,
+p.caption {
+  text-align: center;
+  margin-bottom: 0;
+  color: gray;
+  font-size: 70%;
+}
+
+/* Same gray/small type as captions, but left-aligned. Grouping these with
+   `text-align: center` was a no-op on desktop (inline <a> shrink-wraps) and
+   centered the CC/JSON/host/search line on mobile once the chevron insets
+   made each link wide enough for the alignment to show. */
+.footer a {
+  margin-bottom: 0;
+  color: gray;
+  font-size: 70%;
+}
+
+.twins p {
+  color: gray;
+}
+
+p.readout {
+  text-align: center;
+  font-size: 300%;
+  color: black;
+  font-weight: bold;
+  margin: 0;
+}
+
+.footer {
+  clear: both;
+  margin-bottom: 1em;
+  /* Stock used 500px so last content could scroll above the site footer.
+     .main is now sized above that bar, so only a small pad is needed. */
+  padding-bottom: 50px;
+}
+
+.page {
+  float: left; /* inline-block preferred? */
+  margin: 8px;
+  /* padding: 0 31px; */
+  width: 490px;
+  flex: 0 0 490px;
+  background-color: white;
+  /*  height: 100%;  */
+  overflow: auto;
+  box-shadow: 2px 1px 4px rgba(0, 0, 0, 0.2);
+  outline: none;
+  /* Containing block for .page-handle so the 40px grab strip pins to the
+     page card (including paper padding), not an empty handle-parent. */
+  position: relative;
+}
+.page.active {
+  box-shadow: 2px 1px 24px rgba(0, 0, 0, 0.4);
+  z-index: 10;
+}
+
+
+.page.plugin > .paper {
+  box-shadow: inset 0px 0px 40px 0px rgba(0, 220, 0, 0.5);
+}
+
+.page.local > .paper {
+  box-shadow: inset 0px 0px 40px 0px rgba(220, 180, 0, 0.7);
+}
+
+.page.remote > .paper {
+  box-shadow: inset 0px 0px 40px 0px rgba(0, 180, 220, 0.5);
+}
+
+.page.recycler > .paper {
+  box-shadow: inset 0px 0px 40px 0px rgba(220, 0, 0, 0.5);
+}
+
+.paper {
+  /*width: 430px;*/
+  padding: 30px;
+  /* content-box + min-height:100% adds this padding on top of the page
+     height, so short pages always get a vertical scrollbar. */
+  box-sizing: border-box;
+  min-height: 100%;
+}
+
+.handle-parent {
+  z-index: 0;
+  /* Static so the absolute .page-handle pins to .page, not this empty wrapper. */
+  position: static;
+}
+
+.page-handle {
+  /* Invisible title-bar grab: top 40px of the page, including paper padding.
+     Height used to be unset (0px), so there was no discoverable drag target. */
+  z-index: 3;
+  width: 100%;
+  height: 40px;
+  position: absolute;
+  left: 0;
+  top: 0;
+  cursor: grab;
+  touch-action: none;
+}
+
+/* Twin flags/links stay tappable; empty chrome in that band starts a page drag. */
+.twins {
+  pointer-events: none;
+}
+
+.twins a,
+.twins img,
+.twins span {
+  pointer-events: auto;
+  /* Above the 40px page-handle so fork flags stay tappable. */
+  position: relative;
+  z-index: 4;
+}
+
+/* Pending remove-from-lineup: soft dismiss, not delete-red. */
+body.wiki-page-lineup-shrunk .main > .page.pending-remove.wiki-page-ghost {
+  border-color: #666 !important;
+  background: #ddd !important;
+}
+
+/* Mobile remove-from-lineup: 20px full-width top strip. Translucent so the
+   page behind stays visible; same dashed/hot colours, just shorter. */
+.page-drag-targets {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: auto;
+  z-index: 100000;
+  pointer-events: none;
+  justify-content: stretch;
+  align-items: stretch;
+  gap: 0;
+  box-sizing: border-box;
+}
+
+.page-drag-targets.is-active {
+  display: flex;
+}
+
+.page-drag-targets-trash-only .page-drag-target-trash {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: none;
+}
+
+.page-drag-target {
+  pointer-events: none;
+  height: 20px;
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0;
+  border: 2px dashed #8a8a8a;
+  background: rgba(255, 255, 255, 0.28);
+  color: #333;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-sizing: border-box;
+  transition: background-color 120ms, border-color 120ms, color 120ms;
+}
+
+.page-drag-target.is-unavailable {
+  visibility: hidden;
+}
+
+.page-drag-target-icon {
+  font-size: 14px;
+  line-height: 1;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-drag-target-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.page-drag-target-trash .page-drag-target-icon {
+  color: #555;
+}
+
+.page-drag-target.is-hot {
+  border-style: solid;
+  border-color: #333;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.page-drag-target-trash.is-hot {
+  border-color: #c62828;
+  background: rgba(255, 235, 238, 0.4);
+  color: #c62828;
+  box-shadow: 0 2px 10px rgba(198, 40, 40, 0.2);
+}
+
+.page-drag-target-trash.is-hot .page-drag-target-icon {
+  color: #c62828;
+}
+
+.twins span {
+  /* Above .page-handle (z-index 3) so neighborhood flags stay tappable. */
+  z-index: 4;
+  position: relative;
+}
+
+.header {
+  z-index: 2;
+  position: relative;
+}
+
+.header span {
+  z-index: 2;
+  position: relative;
+}
+
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  margin-left: 2px;
+  resize: vertical;
+  width: calc(100% - 12px);
+  min-height: 150px;
+}
+
+/* Desktop: no page-nav chrome (removed). */
+
+.clickable:hover {
+  cursor: pointer;
+}
+
+@media all and (max-width: 490px) {
+  /* Readable mobile floor — footer text ≥16px. */
+  body,
+  footer,
+  .page {
+    font-size: 16px;
+  }
+
+  .page {
+    flex: 0 0 100vw;
+    width: 100vw;
+    max-width: 100vw;
+    /* min-width:auto (flex default) lets wide plugin content (activity » chevrons
+       with negative margin) grow the column past the viewport and break snap. */
+    min-width: 0;
+    /* Drop the desktop 8px gutter — it reads as an empty strip above the page. */
+    margin: 0;
+    /* Same split as desktop: this column is the Y scroller, .main is X-only.
+       clip (not hidden) on X so wide plugin content cannot grow the column past
+       snap; auto on Y so you stop at the story end instead of panning the card
+       off-screen. Item-chrome pin already listens to scroll on overflow ancestors. */
+    overflow-x: clip;
+    overflow-y: auto;
+    /* start, not center: the last 100vw column often cannot center (subpixel /
+       100vw vs clientWidth), so mandatory snap yanked back to the previous page
+       and the right chevron disappeared. */
+    scroll-snap-align: start;
+    position: relative;
+    box-sizing: border-box;
+  }
+
+  /* Page-drag shrink uses zoom:0.5 — overflow-x:hidden + min-width:0 clip the
+     scaled neighbors into an empty gray strip and hide the trash/chip context.
+     Restore predictable half-size columns for the duration of the drag. */
+  body.wiki-page-lineup-shrunk .main > .page:not(.wiki-page-ghost) {
+    overflow: visible;
+    min-width: 100vw;
+    max-width: none;
+  }
+
+  .paper {
+    padding: 16px 16px 24px;
+  }
+
+  /* Align CC/JSON/host/search with the story. Equal 48px side insets cleared
+     the chevrons but made the line look centered in the page. Sit above the
+     44×44 lineup chevrons (bottom: footer+16px) instead. */
+  .page .footer {
+    padding-left: 0;
+    padding-right: 0;
+    padding-bottom: 80px;
+    text-align: left;
+  }
+
+  /* Lineup paging: 44×44 hit target in the corners (accessible), but the
+     visible chrome is a narrow rectangle in the 16px paper gutter so the
+     control looks smaller than it is. Extra 28px toward the story is
+     transparent — do not paint it.
+     z-index 1005 (was 900): .page overflow-y:auto is a compositor layer
+     that paints over position:fixed siblings on mobile, so both chevrons
+     vanished after the X/Y overflow split. Stay above footer (1000) and
+     the page scroller, below search (1100). translateZ keeps our own
+     layer so iOS cannot bury the buttons under the column scroller. */
+
+
+
+
+
+
+
+
+
+  /* Long-press jump: vanish immediately without display:none, which would
+     drop pointer capture onto the story while the finger is still down. */
+
+  /* Long-press jump hides the chevron under the finger — without this, the
+     still-down press selects page text. Lifted after pointerup. */
+
+  /* Sits under the chevron (z-index 1005) and a bit larger, so a retargeted
+     ghost click still hits chrome instead of the story item. Below the
+     chevron so a quick second tap still reaches the button. */
+
+
+  .main {
+    scroll-snap-type: x mandatory;
+  }
+
+
+  /* Mobile: denser pad than desktop's 10px so menu/owner/lock/edit/search/pages
+     can share one row; stack to two rows only when flags + chrome won't fit. */
+  footer,
+  footer.neighborhood-above {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    column-gap: 2px;
+    height: auto;
+    min-height: 0;
+    padding-left: 4px;
+    padding-right: 8px;
+  }
+
+  footer.neighborhood-above {
+    /* Exactly two rows: flags, then chrome. Grid keeps menu/owner/lock/edit/search/pages
+       on one line so a long display name ellipsizes instead of wrapping a 3rd row. */
+    display: grid;
+    /* Owner prefers full name (shrinks only after search is at floor via JS).
+       Trailing 1fr so leftover width does not inflate search. */
+    grid-template-columns: auto minmax(0, max-content) auto max-content 1fr;
+    grid-template-rows: auto auto;
+    align-items: center;
+    column-gap: 2px;
+    /* One gap for: footer-top→flags, flags→controls, controls→footer-bottom. */
+    --footer-stack-gap: 6px;
+    row-gap: var(--footer-stack-gap);
+    padding-top: var(--footer-stack-gap);
+    padding-bottom: var(--footer-stack-gap);
+    /* Let flag spin corners paint into the stack gaps. */
+    overflow: visible;
+  }
+
+  footer .neighborhood {
+    flex: 0 0 auto;
+    margin-left: 0;
+    min-width: 0;
+    background: transparent;
+    background-image: none;
+    /* Spin clearance for .wait/.fetch rotate; negative margins keep external gaps. */
+    padding-top: 6px;
+    padding-bottom: 6px;
+    margin-top: -6px;
+    margin-bottom: -6px;
+    overflow: visible;
+  }
+
+  footer.neighborhood-above .neighborhood {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    flex: unset;
+    order: unset;
+    width: auto;
+    max-width: 100%;
+    min-width: 0;
+    justify-content: flex-end;
+    overflow: hidden;
+  }
+
+  footer.neighborhood-above .neighborhood.overflowing,
+  footer.neighborhood-above .neighborhood.scrollable {
+    justify-content: flex-start;
+  }
+
+  footer.neighborhood-above .neighborhood-track {
+    flex: 0 0 auto;
+    width: max-content;
+    max-width: none;
+    margin-left: auto;
+    margin-right: 0;
+  }
+
+  footer.neighborhood-above .neighborhood.overflowing .neighborhood-track,
+  footer.neighborhood-above .neighborhood.scrollable .neighborhood-track {
+    margin-left: 0;
+  }
+
+  /* Keep origin in the pack — never isolate it with an auto margin. */
+  footer.neighborhood-above .neighborhood-track > .neighbor {
+    margin-left: 0;
+  }
+
+  footer.neighborhood-above > .footer-content-row {
+    display: contents;
+  }
+
+  /* Direct footer child on mobile (neighbors.placeMenuIn) so grid column 1 is the
+     ☰ tap target outside the search flex item — 40×40 for a usable finger hit. */
+  footer .footer-menu {
+    flex: 0 0 auto;
+    align-self: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    margin: 0;
+    padding: 0;
+    font-size: 22px;
+    line-height: 1;
+    /* ☰ sits high in most fonts — nudge for optical vertical center vs Wiki-by. */
+    transform: translateY(1px);
+  }
+
+  footer.neighborhood-above > .footer-menu {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  /* Two-line "Wiki by:" / name: identity stays readable while the name column can
+     ellipsis after search hits the icon floor (desktop stays one-line). */
+  footer #site-owner {
+    flex: 0 1 auto;
+    align-self: center;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    margin: 0;
+    line-height: 1.15;
+    font-size: 14px;
+    font-weight: 400;
+    color: #c8c8c8;
+    white-space: nowrap;
+  }
+
+  footer.neighborhood-above > #site-owner {
+    grid-column: 2;
+    grid-row: 2;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  footer #site-owner > span,
+  footer #site-owner > #site-owner {
+    display: block;
+    width: auto;
+    min-width: 0;
+    max-width: 100%;
+    font-size: 16px;
+    font-weight: 700;
+    color: #ffffff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  footer #security {
+    flex: 0 0 auto;
+    margin-left: 0;
+    /* Slight pull toward edit; 3px more gap than the prior -4px pull. */
+    margin-right: -1px;
+  }
+
+  footer.neighborhood-above > #security {
+    grid-column: 3;
+    grid-row: 2;
+  }
+
+  footer #site-owner.footer-item,
+  footer #security.footer-item {
+    margin-left: 0;
+  }
+
+  footer .footer-controls,
+  footer.neighborhood-above .footer-controls {
+    flex: 0 0 auto;
+    width: auto;
+    /* Search width is JS-driven; keep pages/edit from being crushed to zero. */
+    min-width: min-content;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    /* Padlock↔edit and edit↔search stay tight so flags keep the leftover. */
+    gap: 2px;
+  }
+
+  footer.neighborhood-above > .footer-controls {
+    grid-column: 4;
+    grid-row: 2;
+    margin-right: 0;
+  }
+
+  /* Edit before search: keep the toggle next to the padlock; search+pages trail right. */
+  footer .wiki-edit-toggle {
+    order: 1;
+    flex: 0 0 auto;
+    flex-direction: column;
+    min-width: 34px;
+    min-height: 40px;
+    padding: 0;
+    gap: 2px;
+    background: transparent;
+  }
+
+  footer .wiki-edit-desktop-label {
+    display: none;
+  }
+
+  /* Keep .editEnable in the DOM for plugins that still gate on
+     $('.editEnable').is(':visible'). Use opacity + 1×1 layout — not
+     clip:rect(0,0,0,0) — so jQuery treats it as visible on mobile. */
+  footer .editEnableSlot {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  footer .wiki-edit-mobile {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  footer .wiki-edit-toggle.is-on .edit-toggle-track {
+    background: #30d158;
+    border-color: #12a836;
+  }
+
+  /* High contrast on the footer (footer text color is light). */
+  footer .edit-toggle-label {
+    font-size: 14px;
+    color: #f2f2f2;
+    text-shadow: 0 0 1px rgba(0, 0, 0, 0.55);
+  }
+
+  /* Beat desktop `.footer-controls .searchbox { flex: 0 1 auto }` (0,2,0).
+     Width comes from --footer-search-width (neighbors.js). */
+  footer .footer-controls .searchbox,
+  footer .searchbox {
+    order: 2;
+    flex: 0 0 auto;
+    min-width: 0;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    width: auto;
+  }
+
+  footer .footer-controls .searchbox .pages,
+  footer .searchbox .pages {
+    /* Do not use margin-left:auto — it can inflate the searchbox and steal name space. */
+    margin-left: 0;
+    flex: 0 0 auto;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0;
+    white-space: normal;
+    font-size: 14px;
+    line-height: 1.1;
+    text-align: right;
+    padding-left: 4px;
+  }
+
+  footer .neighbor {
+    /* Base .neighbor is 16×16; mobile flags are 28×28 — must override both axes
+       or the 28px-wide images get squashed into a 16px-tall strip. */
+    position: relative;
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    padding-left: 8px;
+    /* Keep layout footprint; ::after expands the real finger target to ~44×44. */
+    touch-action: manipulation;
+  }
+
+  footer .neighbor::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translateY(-50%);
+  }
+
+  footer .neighbor > div {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+  }
+
+  footer .neighbor img {
+    position: relative;
+    z-index: 1;
+    width: 28px;
+    height: 28px;
+    /* Hit target is .neighbor / ::after — img-only taps miss the expanded finger box. */
+    pointer-events: none;
+  }
+
+  footer #security a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    min-height: 40px;
+    box-sizing: border-box;
+    /* Keep tap size; drop side padding that ate room before the edit toggle. */
+    padding: 0;
+    background: transparent;
+  }
+
+  footer #security img {
+    width: 22px;
+    height: 22px;
+  }
+
+  /* Idle: keep the JS floor width in the flex row (do not grow and shove chrome). */
+  footer .footer-controls .searchbox .search-field,
+  footer .searchbox .search-field {
+    flex: 0 0 var(--footer-search-width, 2.75em);
+    width: var(--footer-search-width, 2.75em);
+    min-width: 2.75em;
+    max-width: none;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  footer .footer-controls .searchbox .pages,
+  footer .searchbox .pages {
+    flex: 0 0 auto;
+    position: relative;
+    z-index: 2;
+  }
+
+  footer input.search {
+    flex: 1 1 auto;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    min-height: 32px;
+    height: 32px;
+    font-size: 16px;
+    padding: 0 8px;
+    touch-action: manipulation;
+  }
+
+  /* Active search expand: only when the neighborhood shares the controls row
+     (search is often icon-floor). Stacked mobile already has a usable field —
+     keep "N pages" visible; do not float over it. Overlay (not flex grow) so
+     menu/owner/lock/edit stay put; ::before holds the idle slot width. */
+  body.wiki-mobile-searching footer:not(.neighborhood-above) .footer-controls .searchbox,
+  body.wiki-mobile-searching footer:not(.neighborhood-above) .searchbox {
+    position: relative;
+    z-index: 12;
+  }
+
+  body.wiki-mobile-searching footer:not(.neighborhood-above) .footer-controls .searchbox::before,
+  body.wiki-mobile-searching footer:not(.neighborhood-above) .searchbox::before {
+    content: '';
+    flex: 0 0 var(--footer-search-width, 2.75em);
+    width: var(--footer-search-width, 2.75em);
+    height: 32px;
+    pointer-events: none;
+    visibility: hidden;
+  }
+
+  body.wiki-mobile-searching footer:not(.neighborhood-above) .footer-controls .searchbox .search-field,
+  body.wiki-mobile-searching footer:not(.neighborhood-above) .searchbox .search-field {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    flex: none;
+    /* At least the idle+pages box; grow to 9em for typing (may cover flags). */
+    width: max(100%, 9em);
+    min-width: 0;
+    max-width: none;
+    height: 32px;
+    z-index: 3;
+  }
+
+  body.wiki-mobile-searching footer:not(.neighborhood-above) .footer-controls .searchbox .pages,
+  body.wiki-mobile-searching footer:not(.neighborhood-above) .searchbox .pages {
+    /* Under the expanded field while one-row; not tappable until search ends. */
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* Clear: in-flow 32px square hit target; circle centered (same as desktop).
+     Keep min-width in px — em would collapse under font-size:0 on the button. */
+  footer .footer-controls .searchbox.has-search-clear .search-clear,
+  footer .searchbox.has-search-clear .search-clear {
+    flex: 0 0 32px;
+    width: 32px;
+    height: auto;
+    align-self: stretch;
+    min-width: 32px;
+    min-height: 0;
+    max-height: none;
+    background: transparent;
+    justify-content: center;
+    padding: 0;
+  }
+
+  footer .footer-controls .searchbox.has-search-clear .search-clear-glyph,
+  footer .searchbox.has-search-clear .search-clear-glyph {
+    width: 16px;
+    height: 16px;
+  }
+
+  footer .searchbox.has-search-clear .search-clear-glyph::before,
+  footer .searchbox.has-search-clear .search-clear-glyph::after {
+    height: 2px;
+    width: 58%;
+  }
+
+  /* Item edit on mobile: in-story like desktop. Natural size so neighbors stay
+     visible; cap only when the editor exceeds the space above the IME.
+     Hide footer/flags for keyboard room. Do not use position:fixed / overlays /
+     scrollIntoView — those produced a blank screen on mobile. */
+  body.wiki-mobile-editing,
+  body:has(.item.textEditing),
+  body:has(.item.imageEditing) {
+    --footer-height: 0px;
+  }
+
+  body.wiki-mobile-editing footer,
+  body:has(.item.textEditing) footer,
+  body:has(.item.imageEditing) footer,
+  body.wiki-mobile-editing .wiki-flag-tip,
+  body:has(.item.textEditing) .wiki-flag-tip,
+  body:has(.item.imageEditing) .wiki-flag-tip {
+    display: none !important;
+  }
+
+  body.wiki-mobile-editing .item.textEditing textarea,
+  body.wiki-mobile-editing .item.imageEditing textarea,
+  body:has(.item.textEditing) .item.textEditing textarea,
+  body:has(.item.imageEditing) .item.imageEditing textarea {
+    display: block;
+    width: calc(100% - 12px);
+    /* min() so a 150px floor cannot stick out under the IME when
+       --wiki-editor-max-height is the visual viewport. */
+    min-height: min(150px, var(--wiki-editor-max-height, 150px));
+    max-height: var(--wiki-editor-max-height, 70vh);
+    margin-left: 2px;
+    resize: vertical;
+    font-size: 16px;
+    line-height: inherit;
+    box-sizing: border-box;
+    /* hidden until content exceeds max-height (editor.js). overflow:auto or
+       touch-action:pan-y on a short field lets the browser eat the first pan.
+       none + JS in editor.js send that swipe to .page / .main. */
+    overflow-x: hidden;
+    overflow-y: hidden;
+    touch-action: none;
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  body.wiki-mobile-editing .item.imageEditing img,
+  body:has(.item.imageEditing) .item.imageEditing img {
+    max-width: 100%;
+    max-height: 28vh;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+  }
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #ccc #eee;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+  margin-right: 10px;
+}
+
+::-webkit-scrollbar-button:start:decrement,
+::-webkit-scrollbar-button:end:increment {
+  height: 30px;
+  display: block;
+  background-color: transparent;
+}
+
+::-webkit-scrollbar-track-piece {
+  background-color: #eeeeee;
+  -webkit-border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:vertical {
+  height: 50px;
+  background-color: #cccccc;
+  border: 1px solid #eeeeee;
+  -webkit-border-radius: 6px;
+}
+
+.factory {
+  clear: both;
+  margin-top: 5px;
+  margin-bottom: 5px;
+  background-color: #eeeeee;
+  /* Helper copy + plugin menu were 70% (~11px). */
+  font-size: 14px;
+  width: 100%;
+  min-height: 150px;
+}
+
+.factory p,
+.factory li,
+.factory a {
+  font-size: 14px;
+}
+
+.factory p {
+  padding: 10px;
+  text-align: center;
+  margin-bottom: 0;
+  color: gray;
+}
+
+.bytebeat .play {
+  display: inline-block;
+  height: 14px;
+  width: 11px;
+  padding-left: 3px;
+  font-size: 70%;
+  color: #999999;
+  border: 1px solid #999999;
+  border-radius: 8px;
+}
+.bytebeat .symbol {
+  color: #990000;
+}
+
+.video {
+  margin-top: 16px;
+  margin-bottom: 5px;
+}
+
+.revision {
+  position: relative;
+  font-size: 24px;
+  color: rgba(128, 32, 16, 0.7); /* #7b2106 */
+  font-weight: bold;
+}
+
+.revision span {
+  background: rgba(255, 255, 255, 0.8);
+  padding: 10px;
+  position: absolute;
+  display: block;
+  text-align: center;
+  top: -40px;
+  right: 10px;
+  transform: rotate(-15deg);
+  -webkit-transform: rotate(-15deg);
+  -moz-transform: rotate(-15deg);
+}
+
+.favicon {
+  position: relative;
+  margin-bottom: -6px;
+}
+
+/* Mobile long-press replacement for desktop title tooltips on flags. */
+.wiki-flag-tip {
+  position: fixed;
+  z-index: 10050;
+  max-width: min(280px, calc(100vw - 24px));
+  padding: 8px 10px;
+  background: rgba(28, 28, 28, 0.94);
+  color: #f5f5f5;
+  font-size: 13px;
+  line-height: 1.35;
+  white-space: pre-line;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+img.remote,
+img.favicon,
+.neighbor {
+  -webkit-touch-callout: none;
+}
+
+.ghost {
+  opacity: 0.6;
+  border-color: #eef2fe;
+}
+
+/* from Replace SortableJS CSS */
+
+.page.ui-sortable-placeholder {
+  visibility: hidden;
+}
+
+/* from Replace SortableJS CSS */
+
+.journal.ui-draggable,
+.journal.ui-draggable * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  user-drag: none;
+  touch-action: none;
+}
+
+/* from Replace SortableJS CSS */
+
+.main > .journal.ui-draggable-dragging,
+.main > .journal.ui-draggable-dragging * {
+  pointer-events: none !important;
 }
