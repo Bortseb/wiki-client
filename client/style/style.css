@@ -37,34 +37,707 @@ body {
 }
 
 /* Better align sortable items. */
-.ui-sortable-helper > p {
+.wiki-item-drag > p,
+.sortable-drag > p,
+.item-placeholder > p {
   margin: 0px;
 }
 
+/* Mobile item helpers keep a grabbing hand; desktop items use body move/copy/no-drop. */
+/* Insert slot: item-sized on desktop; touch uses a compact bar (JS
+   page; touch stays a compact bar). Outline is inset so the dotted frame
+   does not add size outside the box. Desktop helper is still the full item. */
+.item-placeholder {
+  border: none !important;
+  background: #eee !important;
+  box-shadow: none !important;
+  outline: 1px dotted #bbb !important;
+  outline-offset: -1px;
+  opacity: 1 !important;
+  box-sizing: border-box;
+  overflow: hidden !important;
+}
+.item-placeholder .item-chrome,
+.item-placeholder .item-drag-handle,
+.item-placeholder .item-edit-button,
+.item.wiki-item-chosen .item-chrome,
+.item.wiki-item-chosen .item-drag-handle,
+.item.wiki-item-chosen .item-edit-button,
+.item.wiki-item-drag-sizing .item-chrome,
+.item.wiki-item-drag-sizing .item-drag-handle,
+.item.wiki-item-drag-sizing .item-edit-button {
+  display: none !important;
+}
 
-/* Fallback helper: Sortable locks height from getRect / placeholder styles.
-   .image img { height:100% } then fills the box and captions get clipped.
-   Keep width from JS; let height follow content like stock jQuery UI. */
-body > .ui-sortable-helper.item {
+/* Hide all content in the insert slot — only the dotted box should show.
+   visibility:hidden is not enough: nested `visibility:visible` (plugin imgs,
+   etc.) paints the original item in place during a move. display:none on
+   children + a JS-locked height keeps the grey slot without showing the item.
+   Origin item content is the .shadow-copy, visible only while Shift-copying. */
+.item-placeholder,
+.item-placeholder * {
+  color: transparent !important;
+  caret-color: transparent !important;
+}
+.item-placeholder > * {
+  display: none !important;
+}
+.item-placeholder::before,
+.item-placeholder::after {
+  content: none !important;
+  display: none !important;
+}
+
+.wiki-item-chosen {
+  cursor: auto;
+}
+
+/* Chosen (mousedown) is still the real item until drag distance is met.
+   Do not clip captions the way the grey insert slot does. */
+.wiki-item-chosen:not(.item-placeholder) {
   overflow: visible;
-  height: auto !important;
-  max-height: none;
-}
-body > .ui-sortable-helper.item :is(img.thumbnail, img.wide) {
-  height: auto;
 }
 
-.main {
+/* Helper inherits body cursor (move / copy / no-drop) — classic FedWiki.
+   Desktop: full item clone, transparent page background showing through. */
+.wiki-item-drag.sortable-fallback,
+.sortable-fallback.wiki-item-drag,
+.wiki-item-drag {
+  opacity: 1 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+  border: none !important;
+  z-index: 10000;
+}
+
+.wiki-item-drag.sortable-fallback,
+.sortable-fallback.wiki-item-drag {
+  cursor: inherit !important;
+  /* Slot lock is cloneNode'd onto the helper; unlock so captions match stock. */
+  overflow: visible !important;
+  height: auto !important;
+  max-height: none !important;
+}
+
+.wiki-item-drag.sortable-fallback :is(img.thumbnail, img.wide),
+.sortable-fallback.wiki-item-drag :is(img.thumbnail, img.wide),
+.wiki-item-lineup-helper :is(img.thumbnail, img.wide) {
+  height: auto !important;
+}
+
+
+/* Mobile handle-reorder: full-size clone, faded so the grey insert slot
+   (where the item will land) stays readable underneath. */
+body.wiki-item-handle-drag .sortable-fallback.item,
+body.wiki-item-handle-drag .wiki-item-drag.sortable-fallback {
+  opacity: 0.4 !important;
+  visibility: visible !important;
+  pointer-events: none !important;
+}
+
+
+.sortable-fallback.item .item-chrome,
+.sortable-fallback.item .item-drag-handle,
+.sortable-fallback.item .item-edit-button {
+  display: none !important;
+}
+
+/* Source preview while Shift-copying only — never visible during a normal move.
+   Visibility is driven by jQuery hide/show (inline display) like classic FedWiki;
+   these rules are a backup if inline styles are cleared. */
+.shadow-copy {
+  pointer-events: none !important;
+}
+
+.shadow-copy:not(.is-copy-preview) {
+  display: none !important;
+}
+
+.shadow-copy.is-copy-preview {
+  display: block !important;
+}
+
+/* Desktop classic page drag:
+   - Drag helper = the page under the cursor
+   - Ghost = empty reserved column (invisible slot, same as .ui-sortable-placeholder) */
+.wiki-page-ghost {
+  opacity: 0.45;
+}
+
+body:not(.wiki-page-lineup-shrunk) .main > .page.wiki-page-ghost {
+  /* visibility:hidden keeps layout space without painting a grey placeholder box.
+     Pointer capture lives on body during drag, not the ghost handle. */
+  visibility: hidden !important;
+}
+
+.wiki-page-drag,
+.sortable-fallback.page {
+  cursor: grabbing !important;
+  z-index: 10000;
+  pointer-events: none;
+}
+
+/* Desktop helper is a 1:1 copy of the lineup page — full opacity, same chrome.
+   SortableJS sets inline opacity: 0.8 on fallback clones; beat that until remove. */
+body:not(.wiki-page-lineup-shrunk) .sortable-fallback.page,
+body:not(.wiki-page-lineup-shrunk) .wiki-page-drag.page {
+  overflow: visible !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  background: #fff !important;
+  box-shadow: 2px 1px 24px rgba(0, 0, 0, 0.4);
+}
+
+body:not(.wiki-page-lineup-shrunk) .sortable-fallback.page > *,
+body:not(.wiki-page-lineup-shrunk) .wiki-page-drag.page > * {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Classic desktop: fade to 20% when the page will be removed (drag above the window).
+   SortableJS fallback clones set inline opacity: 0.8, so this must beat that. */
+div.pending-remove.page,
+.wiki-page-drag.pending-remove,
+.sortable-fallback.page.pending-remove {
+  opacity: 0.2 !important;
+  transition-property: opacity;
+  transition-duration: 300ms;
+  box-shadow: none !important;
+}
+
+/* Mobile page drag: half-size lineup, dashed insert slot, mini chip under finger.
+   Kill overscroll while shrunk so a flick through the top chrome stays a dismiss,
+   not an iOS pointer-cancel. */
+body.wiki-page-lineup-shrunk {
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+body.wiki-page-lineup-shrunk .main {
+  scroll-snap-type: none;
+  scroll-padding-inline: 55vw;
+}
+
+body.wiki-page-lineup-shrunk .main > .page:not(.wiki-page-ghost) {
+  zoom: 0.5;
+  transition: none;
+  /* Beat mobile overflow-x:hidden / min-width:0 which otherwise clip zoomed pages. */
+  overflow: visible !important;
+  min-width: 100vw !important;
+  max-width: none !important;
+}
+
+@supports not (zoom: 1) {
+  body.wiki-page-lineup-shrunk .main > .page:not(.wiki-page-ghost) {
+    transform: scale(0.5);
+    transform-origin: top left;
+    margin-right: -50%;
+    margin-bottom: -50%;
+    overflow: visible !important;
+    min-width: 100vw !important;
+    max-width: none !important;
+  }
+}
+
+body.wiki-page-lineup-shrunk .wiki-page-ghost,
+body.wiki-page-lineup-shrunk .main > .page.wiki-page-ghost {
+  zoom: 1 !important;
+  transform: none !important;
+  margin: 8px 4px !important;
+  margin-right: 4px !important;
+  margin-bottom: 8px !important;
+  flex: 0 0 13px !important;
+  width: 13px !important;
+  min-width: 13px !important;
+  max-width: 13px !important;
+  align-self: stretch !important;
+  height: auto !important;
+  min-height: 0 !important;
+  opacity: 1 !important;
+  background-color: var(--wiki-ghost-bg, #e8e8e8) !important;
+  border: 2px dashed #666 !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+}
+
+body.wiki-page-lineup-shrunk .wiki-page-ghost > * {
+  display: none !important;
+}
+
+/* Pending remove-from-lineup: soft dismiss, not delete-red. */
+body.wiki-page-lineup-shrunk .main > .page.pending-remove.wiki-page-ghost {
+  border-color: #666 !important;
+  background: #ddd !important;
+}
+
+/* Mobile remove-from-lineup: 20px full-width top strip. Keep next to chip styles
+   so partial client deploys ship JS + strip chrome together (sortablePages.js). */
+.page-drag-targets {
+  display: none;
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  bottom: 0;
-  /*  position: absolute;*/
-  bottom: 60px;
+  bottom: auto;
+  z-index: 100000;
+  pointer-events: none;
+  justify-content: stretch;
+  align-items: stretch;
+  gap: 0;
+  box-sizing: border-box;
+}
+
+.page-drag-targets.is-active {
+  display: flex;
+}
+
+.page-drag-targets-trash-only .page-drag-target-trash {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: none;
+}
+
+.page-drag-target {
+  pointer-events: none;
+  height: 20px;
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0;
+  border: 2px dashed #8a8a8a;
+  background: rgba(255, 255, 255, 0.28);
+  color: #333;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-sizing: border-box;
+  transition: background-color 120ms, border-color 120ms, color 120ms;
+}
+
+.page-drag-target.is-unavailable {
+  visibility: hidden;
+}
+
+.page-drag-target-icon {
+  font-size: 14px;
+  line-height: 1;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-drag-target-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.page-drag-target-trash .page-drag-target-icon {
+  color: #555;
+}
+
+.page-drag-target.is-hot {
+  border-style: solid;
+  border-color: #333;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.page-drag-target-trash.is-hot {
+  border-color: #c62828;
+  background: rgba(255, 235, 238, 0.4);
+  color: #c62828;
+  box-shadow: 0 2px 10px rgba(198, 40, 40, 0.2);
+}
+
+.page-drag-target-trash.is-hot .page-drag-target-icon {
+  color: #c62828;
+}
+
+/* Invisible pin at original lineup slot — only anchors the red origin string. */
+.wiki-page-drag-origin-pin {
+  flex: 0 0 0;
+  width: 0;
+  min-width: 0;
+  max-width: 0;
   margin: 0;
-  /*  width: 10000%; */
+  padding: 0;
+  border: none;
+  align-self: stretch;
+  height: auto;
+  min-height: 0;
+  pointer-events: none;
+  opacity: 0;
+  overflow: visible;
+  position: relative;
+}
+
+/* Red “string” from original slot center to the drag chip. */
+.wiki-page-drag-string {
+  display: none;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 100000;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.wiki-page-drag-string.is-active {
+  display: block;
+}
+
+.wiki-page-drag-string-line {
+  stroke: #c62828;
+  stroke-width: 2;
+  stroke-linecap: round;
+  fill: none;
+  opacity: 0.9;
+}
+
+/* Extra inline room so first/last pages can center while dragging. */
+.wiki-page-drag-spacer {
+  flex: 0 0 auto;
+  align-self: stretch;
+  height: 1px;
+  pointer-events: none;
+  opacity: 0;
+}
+
+/* Mobile: hide Sortable's full-page fallback — chip follows the finger instead. */
+body.wiki-page-lineup-shrunk .wiki-page-drag,
+body.wiki-page-lineup-shrunk .sortable-fallback.page {
+  opacity: 0 !important;
+  width: 1px !important;
+  height: 1px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  border: none !important;
+  box-shadow: none !important;
+  pointer-events: none !important;
+  z-index: 10000;
+}
+
+.wiki-page-drag-chip {
+  display: none;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 100001;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.wiki-page-drag-chip.is-active {
+  display: block;
+}
+
+.wiki-page-drag-chip-page {
+  width: 84px;
+  height: 117px;
+  box-sizing: border-box;
+  padding: 8px 9px;
+  background: #fff;
+  border: 1px solid #888;
+  border-radius: 5px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+}
+
+.wiki-page-drag-chip-title {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #222;
+  word-break: break-word;
+  overflow: hidden;
+  max-height: 100%;
+}
+
+.wiki-page-drag-chip.is-pending-remove .wiki-page-drag-chip-page {
+  background: #ececec;
+  border-color: #666;
+  opacity: 0.85;
+}
+
+/* Mobile: selected item — suppress native text long-press; body long-press = cross-page;
+   ⋮⋮ handle = same-page Sortable reorder. Allow pan-y so the first scroll
+   gesture on the selected item still moves the page (touch-action:none ate it). */
+.item.handle-selected {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: pan-y;
+  /* Plugin boards may set overflow; keep the pinned overlay paintable. */
+  overflow: visible;
+}
+
+/* While a long-press hold is armed, lock pan so the browser cannot steal the
+   gesture as scroll (pan-y on .handle-selected otherwise cancels the hold). */
+.item.handle-selected.wiki-longpress-pending {
+  touch-action: none;
+}
+
+.item.handle-selected .item-drag-handle {
+  cursor: grab;
+  touch-action: none;
+}
+
+body.wiki-item-lineup-dragging {
+  /* Do not set overflow:hidden here — toggling it mid-touch cancels the pointer on Android. */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+body.wiki-item-lineup-dragging .main {
+  touch-action: none;
+}
+
+.wiki-item-lineup-origin {
+  /* Keep layout for insert math until hidden for move. */
+  outline: none;
+}
+
+/* Move: hide origin (desktop shadow-copy stays hidden). Copy: show it. */
+.wiki-item-lineup-origin-hidden {
+  display: none !important;
+}
+
+.wiki-item-lineup-origin-copy {
+  display: block !important;
+  opacity: 1 !important;
+  outline: 2px dashed #888;
+}
+
+/* Floating mini drag preview — 20% scale (JS) + faded so tall items don't cover drops. */
+.wiki-item-lineup-helper {
+  display: none;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 100060;
+  pointer-events: none;
+  box-sizing: border-box;
+  transform-origin: top left;
+  will-change: transform;
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+  border: none !important;
+  opacity: 0.45 !important;
+  margin: 0 !important;
+  overflow: visible;
+}
+
+.wiki-item-lineup-helper.is-active {
+  display: block;
+}
+
+.wiki-item-lineup-helper .item-chrome,
+.wiki-item-lineup-helper .item-drag-handle,
+.wiki-item-lineup-helper .item-edit-button {
+  display: none !important;
+}
+
+/* Grey insert slot — compact bar for mobile lineup drag (not item-sized). */
+.wiki-item-lineup-placeholder.item-placeholder {
+  display: block;
+  width: auto;
+  margin: 2px 0;
+  pointer-events: none;
+  position: relative;
+  z-index: 5;
+  box-sizing: border-box;
+  height: 28px;
+  min-height: 28px;
+  max-height: 28px;
+  /* Sit just outside the item column; thinner / lighter than desktop default. */
+  border: 1px dotted rgba(140, 140, 140, 0.7) !important;
+  background: rgba(238, 238, 238, 0.55) !important;
+  outline: none !important;
+}
+
+.wiki-item-lineup-overlay {
+  display: none;
+  position: fixed;
+  z-index: 100040;
+  pointer-events: none;
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+.wiki-item-lineup-overlay.is-active {
+  display: flex;
+  /* Halves abut — no gap/divider. Frame is inset box-shadow so the
+     center edge matches the outer edges (no blank strip, no gray line). */
+  gap: 0;
+  padding: 0;
+}
+
+.wiki-item-lineup-half {
+  flex: 1 1 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-sizing: border-box;
+  /* No border/margin: dashed borders + margin/gap left a blank gray center. */
+  border: 0;
+  margin: 0;
+  background: transparent;
+  color: #333;
+  opacity: 0.45;
+  transition: opacity 100ms, background 100ms, box-shadow 100ms, color 80ms;
+  padding: 10px 4px;
+}
+
+/* Source page: move only (no same-page copy) — full width. */
+.wiki-item-lineup-overlay.move-only .wiki-item-lineup-half-copy {
+  display: none;
+}
+
+.wiki-item-lineup-overlay.move-only .wiki-item-lineup-half-move {
+  flex: 1 1 100%;
+}
+
+.wiki-item-lineup-overlay.labels-above .wiki-item-lineup-half {
+  justify-content: flex-start;
+  padding-top: 14px;
+  padding-bottom: 48px;
+}
+
+.wiki-item-lineup-overlay.labels-below .wiki-item-lineup-half {
+  justify-content: flex-end;
+  padding-top: 48px;
+  padding-bottom: 14px;
+}
+
+.wiki-item-lineup-half.is-hot {
+  opacity: 1;
+  /* Tinted fill + continuous inset frame on all four sides. */
+  background: rgba(70, 150, 230, 0.26);
+  box-shadow: inset 0 0 0 3px rgba(26, 111, 208, 0.95);
+  color: #063a75;
+}
+
+.wiki-item-lineup-half-copy.is-hot {
+  background: rgba(50, 190, 100, 0.26);
+  box-shadow: inset 0 0 0 3px rgba(20, 150, 74, 0.95);
+  color: #0a4a24;
+}
+
+.wiki-item-lineup-half-icon {
+  display: flex;
+  line-height: 0;
+  background: rgba(255, 255, 255, 0.88);
+  border-radius: 10px;
+  padding: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.wiki-item-lineup-half-label {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.88);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+/* Mobile cross-page item drag: Move | Copy strip on the destination page. */
+.wiki-item-drop-chooser {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 10050;
+  display: none;
+  box-sizing: border-box;
+  pointer-events: none;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+}
+
+.wiki-item-drop-chooser.is-active {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+}
+
+.wiki-item-drop-choice {
+  flex: 1 1 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 48px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  color: #444;
+  background: #f3f3f3;
+  border: 2px solid transparent;
+  opacity: 0.72;
+  transition: opacity 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+}
+
+.wiki-item-drop-choice.is-hot {
+  opacity: 1;
+  background: #fff;
+  border-color: #3d6ea5;
+  color: #1a3a5c;
+  box-shadow: inset 0 0 0 1px rgba(61, 110, 165, 0.25);
+}
+
+.wiki-item-drop-choice.is-unavailable {
+  opacity: 0.28;
+  filter: grayscale(1);
+}
+
+.wiki-item-drop-choice-icon {
+  display: flex;
+  line-height: 0;
+}
+
+.wiki-item-drop-choice-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.wiki-item-drop-choice-move.is-hot {
+  border-color: #2a7a4b;
+  color: #1a4d2e;
+  box-shadow: inset 0 0 0 1px rgba(42, 122, 75, 0.25);
+}
+
+.wiki-item-drop-choice-copy.is-hot {
+  border-color: #3d6ea5;
+  color: #1a3a5c;
+}
+
+.main {
+  margin: 0;
   display: flex;
   overflow-x: auto;
+  /* Hidden, not visible: overflow-x:auto otherwise computes overflow-y to auto
+     (CSS overflow pairing), so one gesture pans the lineup and the page at once
+     and a column can be thrown completely off-screen. Vertical scroll belongs
+     on .page (desktop overflow:auto; mobile sets it in the 490px block). */
+  overflow-y: hidden;
   height: calc(100vh - 40px);
 }
 
@@ -88,124 +761,159 @@ footer form,
 }
 
 .item-placeholder {
-  border: 2px dotted #bbb;
+  outline: 1px dotted #bbb;
+  outline-offset: -1px;
   background: #eee;
-  box-sizing: border-box;
-  overflow: hidden;
 }
-.item-placeholder > * {
+
+body:not(.fedwiki-edit-mode) .item-chrome,
+body:not(.fedwiki-edit-mode) .item-drag-handle {
+  display: none !important;
+}
+
+/* Overlay wrapper: JS pins `top` to the visible slice of tall items so handle
+   + pencil stay on screen after the item's own top has scrolled away (tap the
+   bottom of chess/activity and the buttons must still be in the viewport).
+   Height 0 so it never reflows story text. */
+.item-chrome {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.item-chrome .item-drag-handle,
+.item-chrome .item-edit-button {
+  pointer-events: auto;
+}
+
+/* Desktop: no handles — whole-item drag. Touch/coarse: overlay grab targets (no reflow). */
+.item-drag-handle {
+  display: none;
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 6;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  user-select: none;
+  color: #555;
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: -1px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.item.textEditing .item-chrome,
+.item.textEditing .item-drag-handle,
+.item.textEditing .item-edit-button,
+.item.textEditing .item-action-toolbar {
+  display: none !important;
+}
+
+.item-edit-button {
+  display: none;
+  position: absolute;
+  top: 48px;
+  right: 2px;
+  z-index: 6;
+  box-sizing: border-box;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  margin: 0;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  color: #555;
+  font-size: 22px;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.item-action-toolbar {
   display: none;
 }
 
-.footer-item {
-  margin-left: 8px;
+.item.handle-selected {
+  outline: 1px dashed #999;
 }
 
-.no-results {
-  font-style: italic;
+.item.toolbar-active {
+  outline: 1px solid #666;
 }
 
-.omitted-results {
-  font-style: italic;
+/* Mobile: tap-selected journal (no handle/pencil — long-press to merge-drag). */
+.journal.journal-selected {
+  outline: 1px dashed #999;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: none;
 }
 
-.incremental-search {
-  position: absolute;
-  background-color: white;
-  color: black;
-  display: inline-block;
-  max-height: 300px;
-  max-width: 430px;
-  padding-top: 5px;
-  padding-bottom: 5px;
-  padding-right: 10px;
-  padding-left: 10px;
-  box-shadow: 0px 0px 2px rgba(0, 0, 0, 0.4);
-  outline: none;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-.search-term {
-  background-color: yellow;
-}
-
-.neighbor {
-  float: right;
-  padding-left: 8px;
-  width: 16px;
-}
-
-img.remote,
-.neighbor img {
-  width: 16px;
-  height: 16px;
-  background-color: #cccccc;
-}
-
-.neighbor .wait {
-  -webkit-animation: rotatecw 2s linear infinite;
-  -moz-animation: rotatecw 2s linear infinite;
-  animation: rotatecw 2s linear infinite;
-}
-.neighbor .fetch {
-  -webkit-animation: rotatecw 0.5s linear infinite;
-  -moz-animation: rotatecw 0.5s linear infinite;
-  animation: rotatecw 0.5s linear infinite;
-}
-.neighbor .fail {
-  -webkit-transform: rotate(15deg);
-  -moz-transform: rotate(15deg);
-  transform: rotate(15deg);
-}
-
-@-webkit-keyframes rotatecw {
-  100% {
-    -webkit-transform: rotate(360deg);
-    transform: rotate(360deg);
-  }
-}
-@-moz-keyframes rotatecw {
-  100% {
-    -webkit-transform: rotate(360deg);
-    transform: rotate(360deg);
-  }
-}
-@keyframes rotatecw {
-  100% {
-    -webkit-transform: rotate(360deg);
-    transform: rotate(360deg);
-  }
-}
-
-header {
-  top: 0;
-}
-
-.page-handle {
+.journal-merge-source {
   cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
-.page.ui-sortable-placeholder {
-  visibility: hidden;
+.journal-merge-source .action,
+.journal-merge-clone,
+.journal-merge-clone .action {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
-footer {
-  bottom: 0;
+.journal-merge-source.is-dragging {
+  touch-action: none;
+  cursor: grabbing;
 }
 
-.twins,
-.journal,
-.footer {
-  min-height: 1em;
-  opacity: 1;
-}
-.twins:hover,
-.journal:hover,
-.footer:hover {
-  opacity: 1;
+.journal .action {
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
+.journal.wiki-merge-hover,
+.journal.ui-state-hover {
+  /* Match stock jQuery UI hover look; inset shadow avoids border layout shift
+     that reflows floated .action icons onto the next row. */
+  background: #ededed;
+  outline: none;
+  box-shadow: inset 0 0 0 1px #ccc;
+}
+
+.journal-merge-clone {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+body.wiki-journal-merging,
+body.wiki-journal-merging * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  caret-color: transparent;
+}
+
+
+/* Stock FedWiki rules restored (accidentally dropped in parity CSS rewrite). */
 .story {
   padding-bottom: 5px;
 }
@@ -221,8 +929,6 @@ footer {
   border-left: 4px solid #ddd;
 }
 
-.data,
-.chart,
 .image {
   overflow: auto; /* clearfix hack */
   float: right;
@@ -252,8 +958,6 @@ footer {
   height: 100%;
 }
 
-/* image overlay */
-
 div.image {
   position: relative;
 }
@@ -273,13 +977,9 @@ div.image {
   opacity: 1;
 }
 
-/* image plugin editor */
-
 .imageEditing #image-options {
   margin-left: 4px;
 }
-
-/* end image plugin editor */
 
 .backlinks {
   /*width: 420px;*/
@@ -313,29 +1013,6 @@ div.image {
   clear: both;
   background-color: #eeeeee;
   padding: 1px;
-}
-
-.journal.ui-draggable {
-  /*width: 420px;*/
-}
-
-
-.journal.ui-draggable,
-.journal.ui-draggable * {
-  -webkit-user-select: none;
-  user-select: none;
-  -webkit-user-drag: none;
-  user-drag: none;
-  touch-action: none;
-}
-.journal.ui-state-hover {
-  /* Inset shadow avoids border layout shift on journal merge hover. */
-  background: #ededed;
-  box-shadow: inset 0 0 0 1px #ccc;
-}
-.main > .journal.ui-draggable-dragging,
-.main > .journal.ui-draggable-dragging * {
-  pointer-events: none;
 }
 
 .action.fork {
@@ -468,12 +1145,63 @@ p.readout {
   margin: 0;
 }
 
+.bytebeat .play {
+  display: inline-block;
+  height: 14px;
+  width: 11px;
+  padding-left: 3px;
+  font-size: 70%;
+  color: #999999;
+  border: 1px solid #999999;
+  border-radius: 8px;
+}
+
+.bytebeat .symbol {
+  color: #990000;
+}
+
+.video {
+  margin-top: 16px;
+  margin-bottom: 5px;
+}
+
+.revision {
+  position: relative;
+  font-size: 24px;
+  color: rgba(128, 32, 16, 0.7); /* #7b2106 */
+  font-weight: bold;
+}
+
+.revision span {
+  background: rgba(255, 255, 255, 0.8);
+  padding: 10px;
+  position: absolute;
+  display: block;
+  text-align: center;
+  top: -40px;
+  right: 10px;
+  transform: rotate(-15deg);
+  -webkit-transform: rotate(-15deg);
+  -moz-transform: rotate(-15deg);
+}
+
+.favicon {
+  position: relative;
+  margin-bottom: -6px;
+}
+
+.ghost {
+  opacity: 0.6;
+  border-color: #eef2fe;
+}
+
 .footer {
   clear: both;
   margin-bottom: 1em;
   padding-bottom: 500px;
 }
 
+/* Stock page column sizing restored — required for lineup flex + mobile 100vw. */
 .page {
   float: left; /* inline-block preferred? */
   margin: 8px;
@@ -512,7 +1240,6 @@ p.readout {
   padding: 30px;
   min-height: 100%;
 }
-
 .handle-parent {
   z-index: 0;
   position: relative;
@@ -525,14 +1252,6 @@ p.readout {
   left: 0px;
   top: 0px;
 }
-
-/* make more specific than ghost style. */
-div.pending-remove.page {
-  opacity: 0.2;
-  transition-property: opacity;
-  transition-duration: 300ms;
-}
-
 .twins span {
   z-index: 2;
   position: relative;
@@ -549,6 +1268,16 @@ div.pending-remove.page {
   min-height: 150px;
 }
 
+.factory {
+  clear: both;
+  margin-top: 5px;
+  margin-bottom: 5px;
+  background-color: #eeeeee;
+}
+.factory p {
+  padding: 10px;
+}
+
 textarea {
   font-size: inherit;
   margin-left: 2px;
@@ -560,7 +1289,6 @@ textarea {
 .clickable:hover {
   cursor: pointer;
 }
-
 @media all and (max-width: 490px) {
   .page {
     width: 1%;
@@ -571,7 +1299,6 @@ textarea {
     overflow-x: unset;
   }
 }
-
 * {
   scrollbar-width: thin;
   scrollbar-color: #ccc #eee;
@@ -602,61 +1329,144 @@ textarea {
   -webkit-border-radius: 6px;
 }
 
-.factory {
-  clear: both;
-  margin-top: 5px;
-  margin-bottom: 5px;
-  background-color: #eeeeee;
-}
-.factory p {
-  padding: 10px;
+@media (hover: none), (pointer: coarse) {
+  /* Overlay the item corner — never change paper/item width (that reflows text). */
+  body.fedwiki-edit-mode .item-drag-handle {
+    display: flex;
+    top: 2px;
+    right: 2px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 26px;
+    touch-action: none;
+  }
+
+  body.fedwiki-edit-mode .item-edit-button {
+    display: flex;
+    top: 50px;
+    right: 2px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 22px;
+    touch-action: manipulation;
+  }
+
+  .item-action-toolbar button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .desktop-only-controls {
+    display: none !important;
+  }
 }
 
-.bytebeat .play {
-  display: inline-block;
-  height: 14px;
-  width: 11px;
-  padding-left: 3px;
-  font-size: 70%;
-  color: #999999;
-  border: 1px solid #999999;
-  border-radius: 8px;
-}
-.bytebeat .symbol {
-  color: #990000;
+.footer-item {
+  margin-left: 8px;
 }
 
-.video {
-  margin-top: 16px;
-  margin-bottom: 5px;
+.no-results {
+  font-style: italic;
 }
 
-.revision {
-  position: relative;
-  font-size: 24px;
-  color: rgba(128, 32, 16, 0.7); /* #7b2106 */
-  font-weight: bold;
+.omitted-results {
+  font-style: italic;
 }
 
-.revision span {
-  background: rgba(255, 255, 255, 0.8);
-  padding: 10px;
+.incremental-search {
   position: absolute;
-  display: block;
-  text-align: center;
-  top: -40px;
-  right: 10px;
-  transform: rotate(-15deg);
-  -webkit-transform: rotate(-15deg);
-  -moz-transform: rotate(-15deg);
+  background-color: white;
+  color: black;
+  display: inline-block;
+  max-height: 300px;
+  max-width: 430px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  padding-right: 10px;
+  padding-left: 10px;
+  box-shadow: 0px 0px 2px rgba(0, 0, 0, 0.4);
+  outline: none;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
-.favicon {
-  position: relative;
-  margin-bottom: -6px;
+.search-term {
+  background-color: yellow;
 }
 
-.ghost {
-  opacity: 0.6;
-  border-color: #eef2fe;
+.neighbor {
+  float: right;
+  padding-left: 8px;
+  width: 16px;
+}
+
+img.remote,
+.neighbor img {
+  width: 16px;
+  height: 16px;
+  background-color: #cccccc;
+}
+
+.neighbor .wait {
+  -webkit-animation: rotatecw 2s linear infinite;
+  -moz-animation: rotatecw 2s linear infinite;
+  animation: rotatecw 2s linear infinite;
+}
+.neighbor .fetch {
+  -webkit-animation: rotatecw 0.5s linear infinite;
+  -moz-animation: rotatecw 0.5s linear infinite;
+  animation: rotatecw 0.5s linear infinite;
+}
+.neighbor .fail {
+  -webkit-transform: rotate(15deg);
+  -moz-transform: rotate(15deg);
+  transform: rotate(15deg);
+}
+
+@-webkit-keyframes rotatecw {
+  100% {
+    -webkit-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+}
+@-moz-keyframes rotatecw {
+  100% {
+    -webkit-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+}
+@keyframes rotatecw {
+  100% {
+    -webkit-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+}
+
+header {
+  top: 0;
+}
+
+.page-handle {
+  cursor: grab;
+}
+
+
+footer {
+  bottom: 0;
+}
+
+.twins,
+.journal,
+.footer {
+  min-height: 1em;
+  opacity: 1;
+}
+.twins:hover,
+.journal:hover,
+.footer:hover {
+  opacity: 1;
 }
