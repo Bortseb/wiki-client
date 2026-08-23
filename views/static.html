@@ -3,7 +3,7 @@
   <head>
     <title>{{title}}</title>
     <meta content='text/html; charset=UTF-8' http-equiv='Content-Type'>
-    <meta content='width=device-width, height=device-height, initial-scale=1.0, user-scalable=no' name='viewport'>
+    <meta content='width=device-width, initial-scale=1.0, user-scalable=no, interactive-widget=resizes-content' name='viewport'>
     <link id='favicon' href='/favicon.png' rel='icon' type='image/png'>
 
     <link href='/style/style.css' rel='stylesheet' type='text/css' media='screen'>
@@ -35,10 +35,13 @@
 
       <div id='security' class='footer-item'></div>
 
-      <span class='searchbox' class='footer-item'>
-        &nbsp;
-        <input class='search' name='search' type='text' placeholder="Search">
-        &nbsp;
+      <span class='searchbox footer-item'>
+        <span class='search-field'>
+          <input class='search' name='search' type='text' placeholder="🔍 Search">
+          <button type='button' class='search-clear' aria-label='Clear search' title='Clear search' hidden>
+            <span class='search-clear-glyph' aria-hidden='true'></span>
+          </button>
+        </span>
         <span class='pages'></span>
       </span>
 
